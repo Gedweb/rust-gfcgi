@@ -1,4 +1,4 @@
 [root]
-name = "hello_world"
+name = "fcgi"
 version = "0.0.1"
 
