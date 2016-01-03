@@ -1,21 +1,21 @@
+use std::collections::HashMap;
+
 /*
  * Listening socket file number
  */
 static LISTENSOCK_FILENO: u8 = 0;
 
-struct Header
+pub struct Header
 {
     version: u8,
     type_: u8,
-    requestIdB1: u8,
-    requestIdB0: u8,
-    contentLengthB1: u8,
-    contentLengthB0: u8,
-    paddingLength: u8,
+	request_id: u16,
+	content_length: u16,
+    padding_length: u8,
     reserved: [u8; 1],
 }
 
-static MAX_LENGTH: u8 = 0xffff;
+static MAX_LENGTH: u16 = 0xffff;
 
 /*
  * Number of bytes in a Header.  Future versions of the protocol
@@ -50,15 +50,14 @@ static MAXTYPE: &'static u8 = &UNKNOWN_TYPE;
 static NULL_REQUEST_ID: u8 = 0;
 
 
-struct BeginRequestBody
+pub struct BeginRequestBody
 {
-    roleB1: u8,
-    roleB0: u8,
+    role: u16,
     flags: u8,
     reserved: [u8; 5],
 }
 
-struct BeginRequestRecord
+pub struct BeginRequestRecord
 {
     header: Header,
     body: BeginRequestBody,
@@ -77,17 +76,14 @@ static AUTHORIZER: u8 = 2;
 static FILTER: u8     = 3;
 
 
-struct EndRequestBody
+pub struct EndRequestBody
 {
-    appStatusB3: u8,
-    appStatusB2: u8,
-    appStatusB1: u8,
-    appStatusB0: u8,
-    protocolStatus: u8,
+    app_status: u32,
+    protocol_status: u8,
     reserved: [u8; 3],
 }
 
-struct EndRequestRecord
+pub struct EndRequestRecord
 {
     header: Header,
     body: EndRequestBody,
@@ -110,14 +106,31 @@ static MAX_REQS: &'static str = "MAX_REQS";
 static MPXS_CONNS: &'static str = "MPXS_CONNS";
 
 
-struct UnknownTypeBody
+pub struct UnknownTypeBody
 {
     type_: u8,    
     reserved: [u8; 7],
 }
 
-struct UnknownTypeRecord
+pub struct UnknownTypeRecord
 {
     header: Header,
     body: UnknownTypeBody,
 }
+
+/*
+ * Request message
+ */
+pub struct Request
+{
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+
+
+
+
+
+
+

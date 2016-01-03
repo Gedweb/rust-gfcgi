@@ -1,9 +1,10 @@
 [package]
-
+authors = ["Gedweb <vert@gedweb.name>"]
 name = "fcgi"
-version = "0.0.1"
-authors = [ "Your name <you@example.com>" ]
+version = "1.0.0"
 
 [[bin]]
+name = "fcgi"
 
-name = "hello_world"
+[dependencies]
+byteorder = "^0.4.2"

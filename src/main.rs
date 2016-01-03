@@ -1,5 +1,7 @@
 extern crate fcgi;
 
+use fcgi::fcgi::client;
+
 fn main() {
-    println!("Hello, world!");
+    client::Listener::new("localhost:4128").run();
 }
