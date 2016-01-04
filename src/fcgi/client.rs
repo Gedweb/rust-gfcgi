@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 use std::thread;
 
 use fcgi::entity;
+use fcgi::serialize::Serialize;
 
 pub struct Listener
 {
@@ -32,7 +33,7 @@ impl Listener
             
             let child = match stream {
                 Ok(stream) => thread::spawn(move || {
-                    Stream::new(stream);
+                    Stream::new(stream).handle();
                 }),
                 Err(error) => panic!("Connection error {}", error),
             };
@@ -56,5 +57,20 @@ impl Stream
         Stream {
             _stream: stream,
         }
+    }
+    
+    fn handle(&mut self)
+    {
+        let mut buf: [u8; entity::HEADER_LEN] = [0; entity::HEADER_LEN]; 
+        
+        match self._stream.read(&mut buf) {
+            Ok(entity::HEADER_LEN) => (),
+            _ => panic!("Broken message"),
+        }
+        
+        let mut header = entity::Header::new();
+        header.read(&buf);
+        
+        println!("{:?}", header);
     }
 }
