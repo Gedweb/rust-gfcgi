@@ -7,4 +7,4 @@ version = "1.0.0"
 name = "fcgi"
 
 [dependencies]
-byteorder = "^0.4.2"
+byteorder = "0.4.2"
