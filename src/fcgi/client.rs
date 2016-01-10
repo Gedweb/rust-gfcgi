@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 use std::thread;
 
 use fcgi::model;
+use std::collections::HashMap;
 
 pub struct Listener
 {
@@ -62,13 +63,31 @@ impl Stream
     
     fn handle(&mut self)
     {
-        let mut request = model::Request::new();
+        let request_list: HashMap<u16, model::Request> = self.read();
+        
+        for (request_id, request) in request_list {
+            self.write(request_id);
+        }  
+    }
+    
+    fn write(&mut self, request_id: u16)
+    {
+        let response = model::Response::new(request_id, b"Status: 401\r\nContent-Type: text/plain\r\n\r\nIt's work!".to_vec());
+        
+        match self._stream.write(&response.get_data()) {
+            Ok(_) => (),
+            _ => panic!("Broken message"),
+        }
+    }
+    
+    fn read(&mut self) -> HashMap<u16, model::Request>
+    {
+        let mut request_list: HashMap<u16, model::Request> = HashMap::new();
         
         'read: loop {
             
-            let r = &mut request;
             let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
-			
+
             match self._stream.read(&mut buf) {
                 Ok(model::HEADER_LEN) => (),
                 _ => panic!("Broken message"),
@@ -76,7 +95,13 @@ impl Stream
             
             let header = model::Header::read(&buf);
             
-//            println!("{:?}", header);
+            let r: &mut model::Request = match request_list.contains_key(&header.request_id) {    
+                true => request_list.get_mut(&header.request_id).unwrap(),
+                false => {
+                    request_list.insert(header.request_id, model::Request::new());
+                    request_list.get_mut(&header.request_id).unwrap()
+                }
+            };
             
             // @todo break on all stream types
             if header.content_length == 0 {
@@ -89,19 +114,13 @@ impl Stream
             }
             
             let body_data = self.read_byte(header.content_length as usize);
-
-			match header.type_ {
-			    model::BEGIN_REQUEST => {
-			        
-			    },
-			    model::PARAMS => r.add_param(body_data),
-			    model::STDIN => r.add_body(body_data),
-			    model::DATA => r.add_body(body_data),
-				_ => (), // panic!("Undeclarated fastcgi header"),
-			};
+			r.add_body(header, body_data);
+        
         }
         
-        println!("{:?}", request);
+//        println!("{:?}", request_list);
+        
+        request_list
     }
     
     fn read_byte(&mut self, len: usize) -> Vec<u8>

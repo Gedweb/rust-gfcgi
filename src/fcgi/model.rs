@@ -14,8 +14,8 @@ pub struct Header
 {
     pub version: u8,
     pub type_: u8,
-	pub request_id: u16,
-	pub content_length: u16,
+    pub request_id: u16,
+    pub content_length: u16,
     pub padding_length: u8,
     reserved: [u8; 1],
 }
@@ -124,20 +124,10 @@ pub struct UnknownTypeRecord
 }
 
 /*
- * Request message
- */
-#[derive(Debug)]
-pub struct Request
-{
-    headers: HashMap<String, String>,
-    body: String,
-}
-
-/*
  * Repository
  */
 extern crate byteorder;
-use self::byteorder::{ByteOrder, BigEndian, LittleEndian};
+use self::byteorder::{ByteOrder, BigEndian};
 
 use std::iter::Extend;
 
@@ -148,8 +138,8 @@ impl Header
         Header {
             version: data[0],
             type_: data[1],
-        	request_id: BigEndian::read_u16(&data[2 .. 4]),
-        	content_length: BigEndian::read_u16(&data[4 .. 6]),
+            request_id: BigEndian::read_u16(&data[2 .. 4]),
+            content_length: BigEndian::read_u16(&data[4 .. 6]),
             padding_length: data[6],
             reserved: [0; 1],
         }
@@ -163,13 +153,13 @@ impl Header
         data.push(self.type_);
         
         let mut buf: [u8; 2] = [0; 2];
-    	BigEndian::write_u16(&mut buf, self.request_id);
-    	data.extend_from_slice(&buf);
-    	
-    	let mut buf: [u8; 2] = [0; 2];
-    	BigEndian::write_u16(&mut buf, self.content_length);
-    	data.extend_from_slice(&buf);
-    	
+        BigEndian::write_u16(&mut buf, self.request_id);
+        data.extend_from_slice(&buf);
+        
+        let mut buf: [u8; 2] = [0; 2];
+        BigEndian::write_u16(&mut buf, self.content_length);
+        data.extend_from_slice(&buf);
+        
         data.push(self.padding_length);
         data.extend_from_slice(&self.reserved);
         
@@ -180,7 +170,7 @@ impl Header
 
 impl BeginRequestBody
 {
-    pub fn read(data: &[u8]) -> BeginRequestBody 
+    pub fn read(data: Vec<u8>) -> BeginRequestBody 
     {
         BeginRequestBody {
             role: BigEndian::read_u16(&data[0 .. 2]),
@@ -191,9 +181,12 @@ impl BeginRequestBody
     
     pub fn write(&self) -> Vec<u8>
     {
-        let mut data: Vec<u8> = Vec::new();
+        let mut data: Vec<u8> = Vec::with_capacity(8);
         
-        BigEndian::write_u16(&mut data, self.role);
+        let mut buf: [u8; 2] = [0; 2];
+        BigEndian::write_u16(&mut buf, self.role);
+        data.extend_from_slice(&buf);
+        
         data.push(self.flags);
         data.extend_from_slice(&self.reserved);
         
@@ -204,20 +197,23 @@ impl BeginRequestBody
 
 impl EndRequestBody
 {
-    pub fn read(data: &[u8]) -> EndRequestBody
+    pub fn read(data: Vec<u8>) -> EndRequestBody
     {
         EndRequestBody {
             app_status: BigEndian::read_u32(&data[0 .. 4]),
             protocol_status: data[4],
             reserved: [0; 3],
         }
-	}
+    }
     
     pub fn write(&self) -> Vec<u8>
     {
-        let mut data: Vec<u8> = Vec::new();
+        let mut data: Vec<u8> = Vec::with_capacity(8);
         
-        BigEndian::write_u32(&mut data, self.app_status);
+        let mut buf: [u8; 4] = [0; 4];
+        BigEndian::write_u32(&mut buf, self.app_status);
+        data.extend_from_slice(&buf);
+        
         data.push(self.protocol_status);
         data.extend_from_slice(&self.reserved);
         
@@ -227,7 +223,7 @@ impl EndRequestBody
 
 impl UnknownTypeBody
 {
-    pub fn read(data: &[u8]) -> Self
+    pub fn read(data: Vec<u8>) -> Self
     {
         UnknownTypeBody {
             type_: data[0],    
@@ -237,7 +233,7 @@ impl UnknownTypeBody
     
     pub fn write(&self) -> Vec<u8>
     {
-        let mut data: Vec<u8> = Vec::new();
+        let mut data: Vec<u8> = Vec::with_capacity(8);
         
         data.push(self.type_);
         data.extend_from_slice(&self.reserved);
@@ -246,28 +242,62 @@ impl UnknownTypeBody
     }
 }
 
+/*
+ * Request message
+ */
+#[derive(Debug)]
+pub struct Request
+{
+    role: u16,
+    flags: u8,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
 impl Request
 {
     pub fn new() -> Self
     {
         Request {
+            role: 0,
+            flags: 0,
             headers: HashMap::new(),
-            body: String::new(),            
+            body: String::new(),
         }
     }
     
-    pub fn add_param(&mut self, data: Vec<u8>)
+    pub fn add_body(&mut self, header: Header, body_data: Vec<u8>)
+    {
+        match header.type_ {
+            BEGIN_REQUEST => self.options(body_data),
+            PARAMS => self.param(body_data),
+            STDIN => self.stdin(body_data),
+            DATA => self.stdin(body_data),
+            _ => (), // panic!("Undeclarated fastcgi header"),
+        };
+    }
+    
+    fn options(&mut self, data: Vec<u8>)
+    {
+        let begin_request = BeginRequestBody::read(data);
+        self.role = begin_request.role;
+        self.flags = begin_request.flags;
+    }
+    
+    fn param(&mut self, data: Vec<u8>)
     {
         self.headers.extend(ParamFetcher::new(data).parse_param());
     }
     
-    pub fn add_body(&mut self, data: Vec<u8>)
+    fn stdin(&mut self, data: Vec<u8>)
     {
         self.body = self.body.to_string() + &String::from_utf8(data).unwrap();
     }
 }
 
-
+/*
+ * Split key-value param pairs
+ */
 struct ParamFetcher
 {
     data: Vec<u8>,
@@ -292,8 +322,8 @@ impl ParamFetcher
         
         while data_length > self.pos {
         
-        	let key_length: usize = self.param_length();
-        	let value_length: usize = self.param_length();
+            let key_length: usize = self.param_length();
+            let value_length: usize = self.param_length();
             
             let key: String = String::from_utf8_lossy(&self.data[self.pos .. self.pos+key_length]).into_owned();
             self.pos += key_length;
@@ -314,9 +344,9 @@ impl ParamFetcher
         if (length >> 7) == 1 {
             
             self.data[self.pos] = self.data[self.pos] & 0x7F;
-        	length = BigEndian::read_u32(&self.data[self.pos .. (self.pos+4)]) as usize;
-        	
-        	self.pos += 4;
+            length = BigEndian::read_u32(&self.data[self.pos .. (self.pos+4)]) as usize;
+            
+            self.pos += 4;
         } else {
             self.pos += 1;
         }
@@ -324,6 +354,85 @@ impl ParamFetcher
         length
     } 
 }
+
+/*
+ * Response for request
+ */
+pub struct Response
+{
+    request_id: u16,
+    data: Vec<u8>,
+}
+
+impl Response
+{
+    pub fn new(request_id: u16, data: Vec<u8>) -> Self
+    {
+        Response {
+            request_id: request_id,
+            data: data,
+        }
+    }
+    
+    pub fn get_data(&self) -> Vec<u8>
+    {
+        let mut result: Vec<u8> = Vec::new();
+        
+        for part in self.data[..].chunks(MAX_LENGTH) {
+            result.extend_from_slice(&self.add_header(STDOUT, part.len() as u16));
+            result.extend_from_slice(&part);
+        }
+    
+    	// terminate record
+        result.extend_from_slice(&self.add_header(STDOUT, 0));
+        
+        result.extend_from_slice(&self.end_request());
+        
+        result
+    }
+    
+    fn end_request(&self) -> Vec<u8>
+    {
+        let data = EndRequestBody {
+            app_status: 0,
+            protocol_status: REQUEST_COMPLETE,
+            reserved: [0; 3],
+        }.write();
+        
+        let mut result: Vec<u8> = self.add_header(END_REQUEST, data.len() as u16);
+        result.extend_from_slice(&data);
+        
+        result
+    }
+    
+    fn add_header(&self, type_: u8, length: u16) -> Vec<u8>
+    {
+        let header = Header {
+            version: VERSION_1,
+            type_: type_,
+            request_id: self.request_id,
+            content_length: length,
+            padding_length: 0,
+            reserved: [0; 1],
+        };
+        
+        header.write()
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
