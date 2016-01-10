@@ -382,8 +382,8 @@ impl Response
             result.extend_from_slice(&self.add_header(STDOUT, part.len() as u16));
             result.extend_from_slice(&part);
         }
-    
-    	// terminate record
+
+        // terminate record
         result.extend_from_slice(&self.add_header(STDOUT, 0));
         
         result.extend_from_slice(&self.end_request());
@@ -393,7 +393,7 @@ impl Response
     
     fn end_request(&self) -> Vec<u8>
     {
-        let data = EndRequestBody {
+            let data = EndRequestBody {
             app_status: 0,
             protocol_status: REQUEST_COMPLETE,
             reserved: [0; 3],

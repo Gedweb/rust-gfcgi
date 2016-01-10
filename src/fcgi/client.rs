@@ -65,8 +65,8 @@ impl Stream
     {
         let request_list: HashMap<u16, model::Request> = self.read();
         
-        for (request_id, request) in request_list {
-            self.write(request_id);
+        for request_id in request_list.keys() {
+            self.write(request_id.clone());
         }  
     }
     
@@ -114,7 +114,7 @@ impl Stream
             }
             
             let body_data = self.read_byte(header.content_length as usize);
-			r.add_body(header, body_data);
+            r.add_body(header, body_data);
         
         }
         
