@@ -1,7 +1,6 @@
 /*
  * Entity
  */
-
 use std::collections::HashMap;
 
 /*
@@ -36,17 +35,17 @@ pub const VERSION_1: u8 = 1;
 /*
  * Values for type component of Header
  */
-pub const BEGIN_REQUEST: u8     = 1;  // WS            
-pub const ABORT_REQUEST: u8     = 2;  // WS            
-pub const END_REQUEST: u8       = 3;                   
+pub const BEGIN_REQUEST: u8     = 1;  // WS
+pub const ABORT_REQUEST: u8     = 2;  // WS
+pub const END_REQUEST: u8       = 3;
 pub const PARAMS: u8            = 4;  // WS | stream
 pub const STDIN: u8             = 5;  // WS | stream
-pub const STDOUT: u8            = 6;  //    | stream  
+pub const STDOUT: u8            = 6;  //    | stream
 pub const STDERR: u8            = 7;  //    | stream
 pub const DATA: u8              = 8;  // WS | stream
-pub const GET_VALUES: u8        = 9;  // WS | management 
-pub const GET_VALUES_RESULT: u8 = 10; //    | management 
-pub const UNKNOWN_TYPE: u8      = 11; //    | management 
+pub const GET_VALUES: u8        = 9;  // WS | management
+pub const GET_VALUES_RESULT: u8 = 10; //    | management
+pub const UNKNOWN_TYPE: u8      = 11; //    | management
 pub const MAXTYPE: &'static u8  = &UNKNOWN_TYPE;
 
 /*
@@ -57,15 +56,15 @@ pub const NULL_REQUEST_ID: u8 = 0;
 
 pub struct BeginRequestBody
 {
-    pub role: u16,
-    pub flags: u8,
-    pub reserved: [u8; 5],
+    role: u16,
+    flags: u8,
+    reserved: [u8; 5],
 }
 
-pub struct BeginRequestRecord
+struct BeginRequestRecord
 {
-    pub header: Header,
-    pub body: BeginRequestBody,
+    header: Header,
+    body: BeginRequestBody,
 }
 
 /*
@@ -81,17 +80,17 @@ pub const AUTHORIZER: u8 = 2;
 pub const FILTER: u8     = 3;
 
 
-pub struct EndRequestBody
+struct EndRequestBody
 {
-    pub app_status: u32,
-    pub protocol_status: u8,
-    pub reserved: [u8; 3],
+    app_status: u32,
+    protocol_status: u8,
+    reserved: [u8; 3],
 }
 
-pub struct EndRequestRecord
+struct EndRequestRecord
 {
-    pub header: Header,
-    pub body: EndRequestBody,
+    header: Header,
+    body: EndRequestBody,
 }
 
 /*
@@ -111,13 +110,13 @@ pub const MAX_REQS: &'static str = "MAX_REQS";
 pub const MPXS_CONNS: &'static str = "MPXS_CONNS";
 
 
-pub struct UnknownTypeBody
+struct UnknownTypeBody
 {
-    type_: u8,    
+    type_: u8,
     reserved: [u8; 7],
 }
 
-pub struct UnknownTypeRecord
+struct UnknownTypeRecord
 {
     pub header: Header,
     pub body: UnknownTypeBody,
@@ -128,8 +127,6 @@ pub struct UnknownTypeRecord
  */
 extern crate byteorder;
 use self::byteorder::{ByteOrder, BigEndian};
-
-use std::iter::Extend;
 
 impl Header
 {
@@ -170,7 +167,7 @@ impl Header
 
 impl BeginRequestBody
 {
-    pub fn read(data: Vec<u8>) -> BeginRequestBody 
+    pub fn read(data: Vec<u8>) -> BeginRequestBody
     {
         BeginRequestBody {
             role: BigEndian::read_u16(&data[0 .. 2]),
@@ -226,7 +223,7 @@ impl UnknownTypeBody
     pub fn read(data: Vec<u8>) -> Self
     {
         UnknownTypeBody {
-            type_: data[0],    
+            type_: data[0],
             reserved: [0; 7],
         }
     }
@@ -352,7 +349,7 @@ impl ParamFetcher
         }
             
         length
-    } 
+    }
 }
 
 /*
@@ -361,31 +358,53 @@ impl ParamFetcher
 pub struct Response
 {
     request_id: u16,
-    data: Vec<u8>,
+    header_list: HashMap<String, String>,
+    body: Vec<u8>,
 }
 
 impl Response
 {
-    pub fn new(request_id: u16, data: Vec<u8>) -> Self
+    pub fn new(request_id: u16) -> Self
     {
-        Response {
+        let mut instance = Response {
             request_id: request_id,
-            data: data,
-        }
+            header_list: HashMap::new(),
+            body: Vec::new(),
+        };
+        
+        instance.header_list.insert("Status".to_string(), "200".to_string());
+        
+        instance
     }
     
     pub fn get_data(&self) -> Vec<u8>
     {
         let mut result: Vec<u8> = Vec::new();
         
-        for part in self.data[..].chunks(MAX_LENGTH) {
+        let mut data: Vec<u8> = {
+            
+            let mut header_list: Vec<String> = Vec::new();
+            
+            for (header_name, header_body) in &self.header_list {
+                header_list.push(format!("{}: {}", header_name, header_body));
+            }
+            
+            // http body delimiter
+            header_list.push(String::new());
+            header_list.push(String::new());
+            
+            header_list.join("\r\n").as_bytes().to_vec()
+        };
+        
+        data.extend_from_slice(&self.body);
+        
+        for part in data[..].chunks(MAX_LENGTH) {
             result.extend_from_slice(&self.add_header(STDOUT, part.len() as u16));
             result.extend_from_slice(&part);
         }
 
         // terminate record
         result.extend_from_slice(&self.add_header(STDOUT, 0));
-        
         result.extend_from_slice(&self.end_request());
         
         result

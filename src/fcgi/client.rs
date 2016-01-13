@@ -1,49 +1,8 @@
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::io::{Read, Write};
-use std::thread;
 
 use fcgi::model;
 use std::collections::HashMap;
-
-pub struct Listener
-{
-    _listener: TcpListener,
-}
-
-impl Listener
-{
-    
-    pub fn new(host_port: &str) -> Listener
-    {
-    
-        let listener = match TcpListener::bind(host_port) {
-            Ok(result) => result,
-            Err(_) => panic!("Can't bind {}", host_port),
-        };
-        
-        Listener {
-            _listener: listener,
-        }
-    }
-
-    pub fn run(&self) -> &Listener
-    {
-      
-        for stream in self._listener.incoming() {
-            
-            let child = match stream {
-                Ok(stream) => thread::spawn(move || {
-                    Stream::new(stream).handle();
-                }),
-                Err(error) => panic!("Connection error {}", error),
-            };
-            
-            child.thread();
-        }
-        
-        self
-    }
-}
 
 pub struct Stream
 {
@@ -53,7 +12,7 @@ pub struct Stream
 
 impl Stream
 {
-    fn new (stream: TcpStream) -> Stream
+    pub fn new (stream: TcpStream) -> Stream
     {
         Stream {
             _stream: stream,
@@ -61,26 +20,17 @@ impl Stream
         }
     }
     
-    fn handle(&mut self)
+    pub fn write(&mut self, request_id: u16)
     {
-        let request_list: HashMap<u16, model::Request> = self.read();
-        
-        for request_id in request_list.keys() {
-            self.write(request_id.clone());
-        }  
-    }
-    
-    fn write(&mut self, request_id: u16)
-    {
-        let response = model::Response::new(request_id, b"Status: 401\r\nContent-Type: text/plain\r\n\r\nIt's work!".to_vec());
+        let response = model::Response::new(request_id);
         
         match self._stream.write(&response.get_data()) {
             Ok(_) => (),
-            _ => panic!("Broken message"),
+            _ => panic!("fcgi: failed sending response"),
         }
     }
     
-    fn read(&mut self) -> HashMap<u16, model::Request>
+    pub fn read(&mut self) -> HashMap<u16, model::Request>
     {
         let mut request_list: HashMap<u16, model::Request> = HashMap::new();
         
@@ -90,12 +40,12 @@ impl Stream
 
             match self._stream.read(&mut buf) {
                 Ok(model::HEADER_LEN) => (),
-                _ => panic!("Broken message"),
+                _ => panic!("fcgi: broken request message"),
             }
             
             let header = model::Header::read(&buf);
             
-            let r: &mut model::Request = match request_list.contains_key(&header.request_id) {    
+            let r: &mut model::Request = match request_list.contains_key(&header.request_id) {
                 true => request_list.get_mut(&header.request_id).unwrap(),
                 false => {
                     request_list.insert(header.request_id, model::Request::new());
@@ -103,11 +53,10 @@ impl Stream
                 }
             };
             
-            // @todo break on all stream types
             if header.content_length == 0 {
                 match header.type_ {
                     model::STDIN => break 'read,
-                    model::PARAMS | model::DATA => continue 'read,
+//                    model::PARAMS | model::DATA => continue 'read,
                     _ => (),
                 }
                 break 'read;
@@ -118,8 +67,6 @@ impl Stream
         
         }
         
-//        println!("{:?}", request_list);
-        
         request_list
     }
     
@@ -129,7 +76,7 @@ impl Stream
     
         match (&self._stream).take(len as u64).read_to_end(&mut body_data) {
             Ok(readed_len) if readed_len == len => body_data,
-            _  => panic!("Wrong body length"),
+            _  => panic!("fcgi: broken request message"),
         }
     }
 }
