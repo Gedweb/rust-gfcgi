@@ -59,7 +59,6 @@ impl Stream
 //                    model::PARAMS | model::DATA => continue 'read,
                     _ => (),
                 }
-                break 'read;
             }
             
             let body_data = self.read_byte(header.content_length as usize);

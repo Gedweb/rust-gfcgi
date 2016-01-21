@@ -270,7 +270,7 @@ impl Request
             PARAMS => self.param(body_data),
             STDIN => self.stdin(body_data),
             DATA => self.stdin(body_data),
-            _ => (), // panic!("Undeclarated fastcgi header"),
+            _ => panic!("Undeclarated fastcgi header"),
         };
     }
     
