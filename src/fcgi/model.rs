@@ -248,7 +248,7 @@ pub struct Request
     role: u16,
     flags: u8,
     headers: HashMap<String, String>,
-    body: String,
+    body: Vec<u8>,
 }
 
 impl Request
@@ -259,7 +259,7 @@ impl Request
             role: 0,
             flags: 0,
             headers: HashMap::new(),
-            body: String::new(),
+            body: Vec::new(),
         }
     }
     
@@ -288,7 +288,17 @@ impl Request
     
     fn stdin(&mut self, data: Vec<u8>)
     {
-        self.body = concat!(self.body, &String::from_utf8(data).unwrap());
+        self.body.extend_from_slice(&data);
+    }
+    
+    pub fn body(&self) -> &Vec<u8>
+    {
+        &self.body
+    }
+    
+    pub fn body_string(&self) -> String
+    {
+        String::from_utf8_lossy(&self.body).into_owned()
     }
 }
 
