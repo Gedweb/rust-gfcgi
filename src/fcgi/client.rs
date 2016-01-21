@@ -20,10 +20,8 @@ impl Stream
         }
     }
     
-    pub fn write(&mut self, request_id: u16)
+    pub fn write(&mut self, response: &model::Response)
     {
-        let response = model::Response::new(request_id);
-        
         match self._stream.write(&response.get_data()) {
             Ok(_) => (),
             _ => panic!("fcgi: failed sending response"),
@@ -62,7 +60,7 @@ impl Stream
             }
             
             let body_data = self.read_byte(header.content_length as usize);
-            r.add_body(header, body_data);
+            r.add_record(header, body_data);
         
         }
         

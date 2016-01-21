@@ -263,7 +263,7 @@ impl Request
         }
     }
     
-    pub fn add_body(&mut self, header: Header, body_data: Vec<u8>)
+    pub fn add_record(&mut self, header: Header, body_data: Vec<u8>)
     {
         match header.type_ {
             BEGIN_REQUEST => self.options(body_data),
@@ -288,7 +288,7 @@ impl Request
     
     fn stdin(&mut self, data: Vec<u8>)
     {
-        self.body = self.body.to_string() + &String::from_utf8(data).unwrap();
+        self.body = concat!(self.body, &String::from_utf8(data).unwrap());
     }
 }
 
@@ -355,6 +355,9 @@ impl ParamFetcher
 /*
  * Response for request
  */
+
+const HTTP_STATUS: &'static str = "Status";
+
 pub struct Response
 {
     request_id: u16,
@@ -372,9 +375,23 @@ impl Response
             body: Vec::new(),
         };
         
-        instance.header_list.insert("Status".to_string(), "200".to_string());
+        instance.header_list.insert(HTTP_STATUS.to_string(), 200.to_string());
         
         instance
+    }
+    
+    pub fn set_status(&mut self, code: usize) -> &Self
+    {
+        self.header_list.insert(HTTP_STATUS.to_string(), code.to_string());
+        
+        self
+    }
+    
+    pub fn set_body(&mut self, body: &[u8]) -> &Self
+    {
+        self.body.extend_from_slice(body);
+        
+        self
     }
     
     pub fn get_data(&self) -> Vec<u8>
@@ -412,7 +429,7 @@ impl Response
     
     fn end_request(&self) -> Vec<u8>
     {
-            let data = EndRequestBody {
+        let data = EndRequestBody {
             app_status: 0,
             protocol_status: REQUEST_COMPLETE,
             reserved: [0; 3],
