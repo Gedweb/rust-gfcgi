@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub struct Stream
 {
     _stream: TcpStream,
-    param_string: String,
+    request_list: HashMap<u16, model::Request>,
 }
 
 impl Stream
@@ -16,10 +16,10 @@ impl Stream
     {
         Stream {
             _stream: stream,
-            param_string: String::new(),
+            request_list: HashMap::new()
         }
     }
-    
+
     pub fn write(&mut self, response: &model::Response)
     {
         match self._stream.write(&response.get_data()) {
@@ -27,22 +27,20 @@ impl Stream
             _ => panic!("fcgi: failed sending response"),
         }
     }
-    
+
     pub fn read(&mut self) -> HashMap<u16, model::Request>
     {
-        let mut request_list: HashMap<u16, model::Request> = HashMap::new();
-        
         'read: loop {
-            
+
             let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
 
             match self._stream.read(&mut buf) {
                 Ok(model::HEADER_LEN) => (),
                 _ => panic!("fcgi: broken request message"),
             }
-            
+
             let header = model::Header::read(&buf);
-            
+
             let r: &mut model::Request = match request_list.contains_key(&header.request_id) {
                 true => request_list.get_mut(&header.request_id).unwrap(),
                 false => {
@@ -50,30 +48,46 @@ impl Stream
                     request_list.get_mut(&header.request_id).unwrap()
                 }
             };
-            
+
             if header.content_length == 0 {
                 match header.type_ {
                     model::STDIN => break 'read,
-//                    model::PARAMS | model::DATA => continue 'read,
+                    model::PARAMS | model::DATA => continue 'read,
                     _ => (),
                 }
             }
-            
+
             let body_data = self.read_byte(header.content_length as usize);
             r.add_record(header, body_data);
-        
+
         }
-        
+
         request_list
     }
-    
+
     fn read_byte(&mut self, len: usize) -> Vec<u8>
     {
         let mut body_data: Vec<u8> = Vec::with_capacity(len);
-    
+
         match (&self._stream).take(len as u64).read_to_end(&mut body_data) {
             Ok(readed_len) if readed_len == len => body_data,
             _  => panic!("fcgi: broken request message"),
         }
     }
 }
+
+impl Iterator for Stream
+{
+    type Item = model::Request;
+
+    fn next(&mut self) -> Option<model::Request>
+    {
+        Some(model::Request::new())
+    }
+}
+
+
+
+
+
+

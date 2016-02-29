@@ -15,22 +15,28 @@ fn main() {
     };
 
     for stream in listener.incoming() {
-        
-        let mut client = match stream {
+
+        let mut client: fcgiClient::Stream = match stream {
             Ok(stream) => fcgiClient::Stream::new(stream),
             Err(error) => panic!("Connection error {}", error),
         };
-        
-        for (request_id, request_body) in client.read() {
-            
-            println!("{:?}", request_body);
-            
-            let mut response = fcgiModel::Response::new(request_id);
-            
-            response.set_status(202);
-            response.set_body(b"Hello my friend!");
-            
-            client.write(&response);
+
+        for item in client {
+            println!("{:?}", item);
         }
+
+//        for (request_id, request_body) in client.read() {
+//
+//            println!("{:?}", request_body);
+//
+//            let mut response = fcgiModel::Response::new(request_id);
+//
+//
+//            response.status = 502;
+//            response.body = b"Hello my friend!".to_vec();
+//            response.header.insert("Content-type".to_string(), "application/json".to_string());
+//
+//            client.write(&response);
+//        }
     }
 }
