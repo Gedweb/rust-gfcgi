@@ -2,8 +2,7 @@ use std::net::TcpListener;
 
 extern crate fcgi;
 
-use fcgi::fcgi::model as fcgiModel;
-use fcgi::fcgi::client as fcgiClient;
+use fcgi::fcgi::client;
 
 fn main() {
 
@@ -16,27 +15,29 @@ fn main() {
 
     for stream in listener.incoming() {
 
-        let mut client: fcgiClient::Stream = match stream {
-            Ok(stream) => fcgiClient::Stream::new(stream),
-            Err(error) => panic!("Connection error {}", error),
+        let a = match stream {
+            Ok(n) => n,
+            message @ Err(_) => panic!(message),
         };
 
-        for item in client {
-            println!("{:?}", item);
+        let mut client = client::StreamReader::new(&a);
+
+        loop {
+
+            let request = match client.next() {
+                Some(r) => r,
+                None => break,
+            };
+
+            println!("{:?}", request);
+
+            let mut response = request.reply();
+            response.status = 503;
+            response.body = b"Hello my friend!".to_vec();
+            response.header.insert("Content-type".to_string(), "application/json".to_string());
+
+            client.write(&response);
         }
 
-//        for (request_id, request_body) in client.read() {
-//
-//            println!("{:?}", request_body);
-//
-//            let mut response = fcgiModel::Response::new(request_id);
-//
-//
-//            response.status = 502;
-//            response.body = b"Hello my friend!".to_vec();
-//            response.header.insert("Content-type".to_string(), "application/json".to_string());
-//
-//            client.write(&response);
-//        }
     }
 }

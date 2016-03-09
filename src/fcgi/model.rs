@@ -245,17 +245,19 @@ impl UnknownTypeBody
 #[derive(Debug, Clone)]
 pub struct Request
 {
-    role: u16,
-    flags: u8,
-    headers: HashMap<String, String>,
-    body: Vec<u8>,
+    pub id: u16,
+    pub role: u16,
+    pub flags: u8,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
 }
 
 impl Request
 {
-    pub fn new() -> Self
+    pub fn new(id: u16) -> Request
     {
         Request {
+            id: id,
             role: 0,
             flags: 0,
             headers: HashMap::new(),
@@ -299,6 +301,11 @@ impl Request
     pub fn body_string(&self) -> String
     {
         String::from_utf8_lossy(&self.body).into_owned()
+    }
+
+    pub fn reply(&self) -> Response
+    {
+        Response::new(self.id)
     }
 }
 
@@ -370,7 +377,7 @@ const HTTP_STATUS: &'static str = "Status";
 
 pub struct Response
 {
-    request_id: u16,
+    id: u16,
     pub status: u16,
     pub header: HashMap<String, String>,
     pub body: Vec<u8>,
@@ -378,18 +385,21 @@ pub struct Response
 
 impl Response
 {
-    pub fn new(request_id: u16) -> Response
+    pub fn new(id: u16) -> Response
     {
         let mut instance = Response {
-            request_id: request_id,
+            id: id,
             status: 200,
             header: HashMap::new(),
             body: Vec::new(),
         };
 
-        instance.header.insert(HTTP_STATUS.to_string(), 200.to_string());
-
         instance
+    }
+
+    pub fn get_id(&self) -> u16
+    {
+        self.id
     }
 
     pub fn get_data(&self) -> Vec<u8>
@@ -447,7 +457,7 @@ impl Response
         let header = Header {
             version: VERSION_1,
             type_: type_,
-            request_id: self.request_id,
+            request_id: self.id,
             content_length: length,
             padding_length: 0,
             reserved: [0; 1],
