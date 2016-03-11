@@ -1,40 +1,32 @@
 use std::net::TcpListener;
 
+use std::fs::File;
+use std::io::Read;
+
 extern crate fcgi;
 
-use fcgi::fcgi::client;
+use fcgi::client;
 
 fn main() {
 
-    let host_port: &str = "localhost:4128";
-
-    let listener = match TcpListener::bind(host_port) {
-        Ok(result) => result,
-        Err(_) => panic!("Can't bind {}", host_port),
-    };
+    let listener = TcpListener::bind("localhost:4128").unwrap();
 
     for stream in listener.incoming() {
 
-        let a = match stream {
-            Ok(n) => n,
-            message @ Err(_) => panic!(message),
-        };
+        let mut client = client::Stream::new(stream.unwrap());
 
-        let mut client = client::StreamReader::new(&a);
-
-        loop {
-
-            let request = match client.next() {
-                Some(r) => r,
-                None => break,
-            };
+        while let Some(request) = client.next() {
 
             println!("{:?}", request);
 
             let mut response = request.reply();
-            response.status = 503;
-            response.body = b"Hello my friend!".to_vec();
-            response.header.insert("Content-type".to_string(), "application/json".to_string());
+
+            let mut buf: Vec<u8> = Vec::new();
+            let mut file: File = File::open("/home/gedweb/Dropbox/Pictures/crow/crow.png").unwrap();
+            file.read_to_end(&mut buf).unwrap();
+
+
+            response.set_status(200).set_header("Content-type", "image/png").set_body(&buf);
 
             client.write(&response);
         }

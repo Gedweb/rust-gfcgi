@@ -1,22 +1,22 @@
+pub mod model;
+
 use std::net::TcpStream;
 use std::io::{Read, Write};
 use std::collections::HashMap;
 
-use fcgi::model;
-
 #[derive(Debug)]
-pub struct StreamReader<'a>
+pub struct Stream
 {
-    _stream: &'a TcpStream,
+    _stream: TcpStream,
     request_list: HashMap<u16, model::Request>,
     readable: bool,
 }
 
-impl<'a> StreamReader<'a>
+impl Stream
 {
-    pub fn new (stream: &TcpStream) -> StreamReader
+    pub fn new (stream: TcpStream) -> Stream
     {
-        StreamReader {
+        Stream {
             _stream: stream,
             request_list: HashMap::new(),
             readable: true,
@@ -32,7 +32,7 @@ impl<'a> StreamReader<'a>
     }
 }
 
-impl<'a> Iterator for StreamReader<'a>
+impl Iterator for Stream
 {
     type Item = model::Request;
 
@@ -78,7 +78,7 @@ impl<'a> Iterator for StreamReader<'a>
 
             match self._stream.read(&mut body_data) {
                 Ok(readed_len) if readed_len == len =>
-                    self.request_list.get_mut(&request_id).unwrap().add_record(header, body_data),
+                    self.request_list.get_mut(&request_id).unwrap().add_record(&header, body_data),
                 _  => panic!("Wrong body length"),
             }
         };
@@ -90,9 +90,3 @@ impl<'a> Iterator for StreamReader<'a>
         result
     }
 }
-
-
-
-
-
-

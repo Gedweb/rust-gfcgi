@@ -242,7 +242,7 @@ impl UnknownTypeBody
 /*
  * Request message
  */
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Request
 {
     pub id: u16,
@@ -265,7 +265,7 @@ impl Request
         }
     }
 
-    pub fn add_record(&mut self, header: Header, body_data: Vec<u8>)
+    pub fn add_record(&mut self, header: &Header, body_data: Vec<u8>)
     {
         match header.type_ {
             BEGIN_REQUEST => self.options(body_data),
@@ -375,55 +375,46 @@ impl ParamFetcher
 
 const HTTP_STATUS: &'static str = "Status";
 
+#[derive(Debug)]
 pub struct Response
 {
     id: u16,
-    pub status: u16,
-    pub header: HashMap<String, String>,
-    pub body: Vec<u8>,
+    status: u16,
+    header: HashMap<Vec<u8>, Vec<u8>>,
+    body: Vec<u8>,
 }
 
 impl Response
 {
-    pub fn new(id: u16) -> Response
+    fn new(id: u16) -> Response
     {
-        let mut instance = Response {
+        Response {
             id: id,
             status: 200,
             header: HashMap::new(),
             body: Vec::new(),
-        };
-
-        instance
-    }
-
-    pub fn get_id(&self) -> u16
-    {
-        self.id
+        }
     }
 
     pub fn get_data(&self) -> Vec<u8>
     {
         let mut result: Vec<u8> = Vec::new();
 
-        let mut data: Vec<u8> = {
+        // http headers
+        let new_line = b"\r\n".to_vec();
+        let mut data: Vec<u8> = Vec::new();
 
-            let mut header_list: Vec<String> = Vec::new();
+        for (name, value) in &self.header {
+            data.extend_from_slice(name.as_slice());
+            data.push(b':');
+            data.extend_from_slice(value.as_slice());
+            data.extend_from_slice(&new_line[..]);
+        }
 
-            // set HTTP status code
-            header_list.push(format!("{}: {}", HTTP_STATUS, self.status));
+        // http headers delimiter
+        data.extend_from_slice(&new_line[..]);
 
-            for (name, value) in &self.header {
-                header_list.push(format!("{}: {}", name, value));
-            }
-
-            // http body delimiter
-            header_list.push(String::new());
-            header_list.push(String::new());
-
-            header_list.join("\r\n").as_bytes().to_vec()
-        };
-
+        // http body
         data.extend_from_slice(&self.body);
 
         for part in data[..].chunks(MAX_LENGTH) {
@@ -465,4 +456,77 @@ impl Response
 
         header.write()
     }
+
+    pub fn set_body<'a, T: AsBytes<'a>>(&mut self, data: T) -> &mut Response
+    {
+        self.body.extend_from_slice(data.as_bytes());
+
+        self
+    }
+
+    pub fn set_header<'a, T: AsBytes<'a>>(&mut self, key: T, value: T) -> &mut Response
+    {
+        self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
+
+        self
+    }
+
+    pub fn set_status(&mut self, code: u16) -> &mut Response
+    {
+        self.status = code;
+
+        self
+    }
 }
+
+pub trait AsBytes<'a>
+{
+    fn as_bytes(&self) -> &[u8];
+}
+
+impl<'a> AsBytes<'a> for &'a String
+{
+    fn as_bytes(&self) -> &[u8]
+    {
+        String::as_bytes(self)
+    }
+}
+
+impl<'a> AsBytes<'a> for &'a Vec<u8>
+{
+    fn as_bytes(&self) -> &[u8]
+    {
+        &self
+    }
+}
+
+impl<'a> AsBytes<'a> for &'a str
+{
+    fn as_bytes(&self) -> &[u8]
+    {
+        str::as_bytes(self)
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
