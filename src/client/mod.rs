@@ -1,8 +1,42 @@
 pub mod model;
 
-use std::net::TcpStream;
 use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+
 use std::collections::HashMap;
+
+use std::sync::Arc;
+
+#[derive(Debug)]
+pub struct Client
+{
+    listener: TcpListener,
+    list: Arc<Vec<model::Request>>,
+}
+
+impl Client
+{
+    pub fn new (listener: TcpListener) -> Client
+    {
+        Client {
+            listener: listener,
+            list: Arc::new(Vec::new()),
+        }
+    }
+}
+
+impl Iterator for Client
+{
+    type Item = model::Request;
+
+    fn next(&mut self) -> Option<model::Request>
+    {
+        let result: Option<model::Request> = None;
+
+        result
+    }
+
+}
 
 #[derive(Debug)]
 pub struct Stream
