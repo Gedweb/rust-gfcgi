@@ -5,22 +5,53 @@ use std::net::{TcpListener, TcpStream};
 
 use std::collections::HashMap;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 #[derive(Debug)]
 pub struct Client
 {
     listener: TcpListener,
-    list: Arc<Vec<model::Request>>,
+    list: Arc<Mutex<Vec<model::Request>>>,
 }
 
 impl Client
 {
-    pub fn new (listener: TcpListener) -> Client
+    pub fn new(listener: TcpListener) -> Client
     {
         Client {
             listener: listener,
-            list: Arc::new(Vec::new()),
+            list: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn init(&self)
+    {
+        for stream in self.listener.incoming() {
+            match stream {
+                Ok(stream) => {
+
+                    let list = self.list.clone();
+
+                    let child = thread::spawn(move|| {
+                        // connection succeeded
+                        let http_request = Stream::new(stream);
+
+                        for request in http_request {
+                            let mut list = list.lock().unwrap();
+                            list.push(request);
+
+                            println!("{:?}", list.pop());
+                        }
+
+                    });
+
+                    child.join().unwrap();
+                },
+                Err(msg) => panic!("{}", msg),
+
+
+            }
         }
     }
 }
