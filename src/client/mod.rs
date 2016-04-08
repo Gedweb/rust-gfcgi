@@ -40,8 +40,6 @@ impl Client
                         for request in http_request {
                             let mut list = list.lock().unwrap();
                             list.push(request);
-
-                            println!("{:?}", list.pop());
                         }
 
                     });
@@ -49,8 +47,6 @@ impl Client
                     child.join().unwrap();
                 },
                 Err(msg) => panic!("{}", msg),
-
-
             }
         }
     }
@@ -62,9 +58,10 @@ impl Iterator for Client
 
     fn next(&mut self) -> Option<model::Request>
     {
-        let result: Option<model::Request> = None;
+        let list = self.list.clone();
+        let mut list = list.lock().unwrap();
 
-        result
+        list.pop()
     }
 
 }
