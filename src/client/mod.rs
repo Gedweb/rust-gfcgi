@@ -27,28 +27,24 @@ impl Client
 
     pub fn init(&self)
     {
-        for stream in self.listener.incoming() {
-            match stream {
-                Ok(stream) => {
+        let list = self.list.clone();
+        let listener = self.listener.try_clone().unwrap();
 
-                    let list = self.list.clone();
-
-                    let child = thread::spawn(move|| {
-                        // connection succeeded
+        thread::spawn(move|| {
+            for stream in listener.incoming() {
+                match stream {
+                    Ok(stream) => {
                         let http_request = Stream::new(stream);
 
                         for request in http_request {
                             let mut list = list.lock().unwrap();
                             list.push(request);
                         }
-
-                    });
-
-                    child.join().unwrap();
-                },
-                Err(msg) => panic!("{}", msg),
+                    },
+                    Err(msg) => panic!("{}", msg),
+                }
             }
-        }
+        });
     }
 }
 
@@ -59,9 +55,16 @@ impl Iterator for Client
     fn next(&mut self) -> Option<model::Request>
     {
         let list = self.list.clone();
-        let mut list = list.lock().unwrap();
 
-        list.pop()
+        loop {
+            {
+                let mut list = list.lock().unwrap();
+                match list.pop() {
+                    Some(request) => return Some(request),
+                    None => (),
+                }
+            }
+        }
     }
 
 }
