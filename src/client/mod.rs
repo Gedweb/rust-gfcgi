@@ -5,40 +5,42 @@ use std::net::{TcpListener, TcpStream};
 
 use std::collections::HashMap;
 
-use std::sync::{Arc, Mutex};
 use std::thread;
+use std::sync::mpsc;
 
-#[derive(Debug)]
 pub struct Client
 {
     listener: TcpListener,
-    list: Arc<Mutex<Vec<model::Request>>>,
+    list: Vec<model::Request>,
+    request_tx: mpsc::Sender<model::Request>,
+    request_rx: mpsc::Receiver<model::Request>,
 }
 
 impl Client
 {
     pub fn new(listener: TcpListener) -> Client
     {
+        let (tx, rx) = mpsc::channel();
         Client {
             listener: listener,
-            list: Arc::new(Mutex::new(Vec::new())),
+            list: Vec::new(),
+            request_tx: tx,
+            request_rx: rx,
         }
     }
 
     pub fn init(&self)
     {
-        let list = self.list.clone();
+        let request_tx = self.request_tx.clone();
         let listener = self.listener.try_clone().unwrap();
 
-        thread::spawn(move|| {
+        thread::spawn(move || {
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
-                        let http_request = Stream::new(stream);
-
-                        for request in http_request {
-                            let mut list = list.lock().unwrap();
-                            list.push(request);
+                        let fcgi_stream = Stream::new(stream);
+                        for request in fcgi_stream {
+                            request_tx.send(request).unwrap();
                         }
                     },
                     Err(msg) => panic!("{}", msg),
@@ -54,17 +56,7 @@ impl Iterator for Client
 
     fn next(&mut self) -> Option<model::Request>
     {
-        let list = self.list.clone();
-
-        loop {
-            {
-                let mut list = list.lock().unwrap();
-                match list.pop() {
-                    Some(request) => return Some(request),
-                    None => (),
-                }
-            }
-        }
+        Some(self.request_rx.recv().unwrap())
     }
 
 }
