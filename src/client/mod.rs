@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use std::thread;
 use std::sync::mpsc;
+// use std::sync::Arc;
 
 pub struct Client
 {
@@ -35,13 +36,13 @@ impl Client
         let listener = self.listener.try_clone().unwrap();
 
         thread::spawn(move || {
+
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
-                        let fcgi_stream = Stream::new(stream);
-                        for request in fcgi_stream {
-                            request_tx.send(request).unwrap();
-                        }
+                        let mut fcgi_stream = Stream::new(stream, request_tx.clone());
+                        fcgi_stream.read();
+
                     },
                     Err(msg) => panic!("{}", msg),
                 }
@@ -66,16 +67,18 @@ pub struct Stream
 {
     _stream: TcpStream,
     request_list: HashMap<u16, model::Request>,
+    tx: mpsc::Sender<model::Request>,
     readable: bool,
 }
 
 impl Stream
 {
-    pub fn new (stream: TcpStream) -> Stream
+    pub fn new (stream: TcpStream, tx: mpsc::Sender<model::Request>) -> Stream
     {
         Stream {
             _stream: stream,
             request_list: HashMap::new(),
+            tx: tx,
             readable: true,
         }
     }
@@ -87,16 +90,9 @@ impl Stream
             _ => panic!("fcgi: failed sending response"),
         }
     }
-}
 
-impl Iterator for Stream
-{
-    type Item = model::Request;
-
-    fn next(&mut self) -> Option<model::Request>
+    pub fn read(&mut self)
     {
-        let mut result: Option<model::Request> = None;
-
         'read: while self.readable {
 
             let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
@@ -116,34 +112,33 @@ impl Iterator for Stream
                 },
             };
 
+            let len: usize = header.content_length as usize;
+            let mut body_data: Vec<u8> = Vec::with_capacity(len);
+
             if header.content_length == 0 {
                 match header.type_ {
                     model::STDIN => {
-                        result = self.request_list.remove(&request_id);
-                        break;
+                        self.tx.send(self.request_list.remove(&request_id).unwrap()).unwrap();
                     },
                     model::PARAMS | model::DATA => continue 'read,
                     _ => (),
                 };
+            } else {
+
+                unsafe {
+                    body_data.set_len(len);
+                }
+
+                match self._stream.read(&mut body_data) {
+                    Ok(readed_len) if readed_len == len =>
+                        self.request_list.get_mut(&request_id).unwrap().add_record(&header, body_data),
+                    _  => panic!("Wrong body length"),
+                }
             }
 
-            let len: usize = header.content_length as usize;
-            let mut body_data: Vec<u8> = Vec::with_capacity(len);
-            unsafe {
-                body_data.set_len(len);
+            if self.request_list.is_empty() {
+                self.readable = false;
             }
-
-            match self._stream.read(&mut body_data) {
-                Ok(readed_len) if readed_len == len =>
-                    self.request_list.get_mut(&request_id).unwrap().add_record(&header, body_data),
-                _  => panic!("Wrong body length"),
-            }
-        };
-
-        if self.request_list.is_empty() {
-            self.readable = false;
         }
-
-        result
     }
 }
