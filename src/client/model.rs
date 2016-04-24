@@ -2,6 +2,7 @@
  * Entity
  */
 use std::collections::HashMap;
+use std::sync::mpsc;
 
 /*
  * Listening socket file number
@@ -243,18 +244,19 @@ impl UnknownTypeBody
  * Request message
  */
 #[derive(Debug)]
-pub struct Request
+pub struct Request<T>
 {
     pub id: u16,
     pub role: u16,
     pub flags: u8,
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
+    stream_tx: mpsc::Sender<T>,
 }
 
-impl Request
+impl<T> Request<T>
 {
-    pub fn new(id: u16) -> Request
+    pub fn new(id: u16, tx: mpsc::Sender<T>) -> Request<T>
     {
         Request {
             id: id,
@@ -262,6 +264,7 @@ impl Request
             flags: 0,
             headers: HashMap::new(),
             body: Vec::new(),
+            stream_tx: tx,
         }
     }
 
@@ -303,9 +306,14 @@ impl Request
         String::from_utf8_lossy(&self.body).into_owned()
     }
 
-    pub fn reply(&self) -> Response
+    pub fn get_id(&self) -> u16
     {
-        Response::new(self.id)
+        self.id
+    }
+
+    pub fn reply(&self) -> Response<Self>
+    {
+        Response::new(self)
     }
 }
 
@@ -320,7 +328,7 @@ struct ParamFetcher
 
 impl ParamFetcher
 {
-    pub fn new(data: Vec<u8>) -> Self
+    fn new(data: Vec<u8>) -> Self
     {
         ParamFetcher {
             data: data,
@@ -328,7 +336,7 @@ impl ParamFetcher
         }
     }
 
-    pub fn parse_param(&mut self) -> HashMap<String, String>
+    fn parse_param(&mut self) -> HashMap<String, String>
     {
         let mut param: HashMap<String, String> = HashMap::new();
 
@@ -376,20 +384,20 @@ impl ParamFetcher
 const HTTP_STATUS: &'static str = "Status";
 
 #[derive(Debug)]
-pub struct Response
+pub struct Response<'b, S: 'b>
 {
-    id: u16,
+    request: &'b Request<S>,
     status: u16,
     header: HashMap<Vec<u8>, Vec<u8>>,
     body: Vec<u8>,
 }
 
-impl Response
+impl<'b, S> Response<'b, S>
 {
-    fn new(id: u16) -> Response
+    fn new(request: &'b Request<S>) -> Response<S>
     {
         Response {
-            id: id,
+            request: request,
             status: 200,
             header: HashMap::new(),
             body: Vec::new(),
@@ -448,7 +456,7 @@ impl Response
         let header = Header {
             version: VERSION_1,
             type_: type_,
-            request_id: self.id,
+            request_id: self.request.get_id(),
             content_length: length,
             padding_length: 0,
             reserved: [0; 1],
@@ -457,26 +465,26 @@ impl Response
         header.write()
     }
 
-    pub fn set_body<'a, T: AsBytes<'a>>(&mut self, data: T) -> &mut Response
-    {
-        self.body.extend_from_slice(data.as_bytes());
-
-        self
-    }
-
-    pub fn set_header<'a, T: AsBytes<'a>>(&mut self, key: T, value: T) -> &mut Response
-    {
-        self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
-
-        self
-    }
-
-    pub fn set_status(&mut self, code: u16) -> &mut Response
-    {
-        self.status = code;
-
-        self
-    }
+//    pub fn set_body<'a, T: AsBytes<'a>>(&mut self, data: T) -> &mut Response<S>
+//    {
+//        self.body.extend_from_slice(data.as_bytes());
+//
+//        self
+//    }
+//
+//    pub fn set_header<'a, T: AsBytes<'a>>(&mut self, key: T, value: T) -> &mut Response<S>
+//    {
+//        self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
+//
+//        self
+//    }
+//
+//    pub fn set_status(&mut self, code: u16) -> &mut Response<S>
+//    {
+//        self.status = code;
+//
+//        self
+//    }
 }
 
 pub trait AsBytes<'a>
@@ -507,26 +515,3 @@ impl<'a> AsBytes<'a> for &'a str
         str::as_bytes(self)
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

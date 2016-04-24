@@ -9,12 +9,14 @@ use std::thread;
 use std::sync::mpsc;
 // use std::sync::Arc;
 
+type Request = model::Request<Stream>;
+
 pub struct Client
 {
     listener: TcpListener,
-    list: Vec<model::Request>,
-    request_tx: mpsc::Sender<model::Request>,
-    request_rx: mpsc::Receiver<model::Request>,
+    list: Vec<Request>,
+    request_tx: mpsc::Sender<Request>,
+    request_rx: mpsc::Receiver<Request>,
 }
 
 impl Client
@@ -53,9 +55,9 @@ impl Client
 
 impl Iterator for Client
 {
-    type Item = model::Request;
+    type Item = model::Request<Stream>;
 
-    fn next(&mut self) -> Option<model::Request>
+    fn next(&mut self) -> Option<Request>
     {
         Some(self.request_rx.recv().unwrap())
     }
@@ -66,24 +68,29 @@ impl Iterator for Client
 pub struct Stream
 {
     _stream: TcpStream,
-    request_list: HashMap<u16, model::Request>,
-    tx: mpsc::Sender<model::Request>,
+    request_list: HashMap<u16, Request>,
+    parent_tx: mpsc::Sender<Request>,
+    tx: mpsc::Sender<Stream>,
+    rx: mpsc::Receiver<Stream>,
     readable: bool,
 }
 
 impl Stream
 {
-    pub fn new (stream: TcpStream, tx: mpsc::Sender<model::Request>) -> Stream
+    fn new (stream: TcpStream, parent_tx: mpsc::Sender<Request>) -> Stream
     {
+        let (tx, rx) = mpsc::channel();
         Stream {
             _stream: stream,
             request_list: HashMap::new(),
+            parent_tx: parent_tx,
             tx: tx,
+            rx: rx,
             readable: true,
         }
     }
 
-    pub fn write(&mut self, response: &model::Response)
+    pub fn write(&mut self, response: &model::Response<&Request>)
     {
         match self._stream.write(&response.get_data()) {
             Ok(_) => (),
@@ -108,7 +115,7 @@ impl Stream
             match self.request_list.get(&request_id) {
                 Some(..) => (),
                 None => {
-                    self.request_list.insert(request_id.clone(), model::Request::new(request_id.clone()));
+                    self.request_list.insert(request_id.clone(), model::Request::new(request_id.clone(), self.tx.clone()));
                 },
             };
 
@@ -118,7 +125,7 @@ impl Stream
             if header.content_length == 0 {
                 match header.type_ {
                     model::STDIN => {
-                        self.tx.send(self.request_list.remove(&request_id).unwrap()).unwrap();
+                        self.parent_tx.send(self.request_list.remove(&request_id).unwrap()).unwrap();
                     },
                     model::PARAMS | model::DATA => continue 'read,
                     _ => (),
