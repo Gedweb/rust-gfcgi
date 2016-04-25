@@ -306,14 +306,22 @@ impl<T> Request<T>
         String::from_utf8_lossy(&self.body).into_owned()
     }
 
-    pub fn get_id(&self) -> u16
-    {
-        self.id
-    }
-
     pub fn reply(&self) -> Response<Self>
     {
         Response::new(self)
+    }
+}
+
+pub trait RequestTrait
+{
+    fn get_id(&self) -> u16;
+}
+
+impl<T> RequestTrait for Request<T>
+{
+    fn get_id(&self) -> u16
+    {
+        self.id
     }
 }
 
@@ -384,17 +392,17 @@ impl ParamFetcher
 const HTTP_STATUS: &'static str = "Status";
 
 #[derive(Debug)]
-pub struct Response<'b, S: 'b>
+pub struct Response<'b, S: RequestTrait + 'b>
 {
-    request: &'b Request<S>,
+    request: &'b S,
     status: u16,
     header: HashMap<Vec<u8>, Vec<u8>>,
     body: Vec<u8>,
 }
 
-impl<'b, S> Response<'b, S>
+impl<'b, S: RequestTrait> Response<'b, S>
 {
-    fn new(request: &'b Request<S>) -> Response<S>
+    fn new(request: &'b S) -> Response<S>
     {
         Response {
             request: request,

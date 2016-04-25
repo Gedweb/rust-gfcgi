@@ -7,9 +7,8 @@ use std::collections::HashMap;
 
 use std::thread;
 use std::sync::mpsc;
-// use std::sync::Arc;
 
-type Request = model::Request<Stream>;
+pub type Request = model::Request<Stream>;
 
 pub struct Client
 {
@@ -44,6 +43,7 @@ impl Client
                     Ok(stream) => {
                         let mut fcgi_stream = Stream::new(stream, request_tx.clone());
                         fcgi_stream.read();
+                        fcgi_stream.write();
 
                     },
                     Err(msg) => panic!("{}", msg),
@@ -71,7 +71,7 @@ pub struct Stream
     request_list: HashMap<u16, Request>,
     parent_tx: mpsc::Sender<Request>,
     tx: mpsc::Sender<Stream>,
-    rx: mpsc::Receiver<Stream>,
+    rx: mpsc::Receiver<Request>,
     readable: bool,
 }
 
@@ -90,8 +90,10 @@ impl Stream
         }
     }
 
-    pub fn write(&mut self, response: &model::Response<&Request>)
+    pub fn write(&mut self)
     {
+        let response = self.rx.recv().unwrap();
+
         match self._stream.write(&response.get_data()) {
             Ok(_) => (),
             _ => panic!("fcgi: failed sending response"),
