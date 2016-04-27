@@ -1,6 +1,4 @@
-/*
- * Entity
- */
+/* ----------------- entity ----------------- */
 use std::collections::HashMap;
 use std::sync::mpsc;
 
@@ -123,15 +121,24 @@ struct UnknownTypeRecord
     pub body: UnknownTypeBody,
 }
 
-/*
- * Repository
- */
+/* ----------------- repository ----------------- */
+
 extern crate byteorder;
 use self::byteorder::{ByteOrder, BigEndian};
 
-impl Header
+pub trait Readable {
+    fn read(data: &[u8]) -> Self;
+}
+
+pub trait Writable {
+    fn write(&self) -> Vec<u8>;
+}
+
+/* ----------------- implimentation ----------------- */
+
+impl Readable for Header
 {
-    pub fn read(data: &[u8]) -> Header
+    fn read(data: &[u8]) -> Header
     {
         Header {
             version: data[0],
@@ -142,8 +149,11 @@ impl Header
             reserved: [0; 1],
         }
     }
+}
 
-    pub fn write(&self) -> Vec<u8>
+impl Writable for Header
+{
+    fn write(&self) -> Vec<u8>
     {
         let mut data: Vec<u8> = Vec::with_capacity(self::HEADER_LEN);
 
@@ -166,9 +176,9 @@ impl Header
 }
 
 
-impl BeginRequestBody
+impl Readable for BeginRequestBody
 {
-    pub fn read(data: Vec<u8>) -> BeginRequestBody
+    fn read(data: &[u8]) -> BeginRequestBody
     {
         BeginRequestBody {
             role: BigEndian::read_u16(&data[0 .. 2]),
@@ -176,8 +186,11 @@ impl BeginRequestBody
             reserved: [0; 5],
         }
     }
+}
 
-    pub fn write(&self) -> Vec<u8>
+impl Writable for BeginRequestBody
+{
+    fn write(&self) -> Vec<u8>
     {
         let mut data: Vec<u8> = Vec::with_capacity(8);
 
@@ -193,9 +206,9 @@ impl BeginRequestBody
 }
 
 
-impl EndRequestBody
+impl Readable for EndRequestBody
 {
-    pub fn read(data: Vec<u8>) -> EndRequestBody
+    fn read(data: &[u8]) -> EndRequestBody
     {
         EndRequestBody {
             app_status: BigEndian::read_u32(&data[0 .. 4]),
@@ -203,8 +216,11 @@ impl EndRequestBody
             reserved: [0; 3],
         }
     }
+}
 
-    pub fn write(&self) -> Vec<u8>
+impl Writable for EndRequestBody
+{
+    fn write(&self) -> Vec<u8>
     {
         let mut data: Vec<u8> = Vec::with_capacity(8);
 
@@ -219,17 +235,20 @@ impl EndRequestBody
     }
 }
 
-impl UnknownTypeBody
+impl Readable for UnknownTypeBody
 {
-    pub fn read(data: Vec<u8>) -> Self
+    fn read(data: &[u8]) -> Self
     {
         UnknownTypeBody {
             type_: data[0],
             reserved: [0; 7],
         }
     }
+}
 
-    pub fn write(&self) -> Vec<u8>
+impl Writable for UnknownTypeBody
+{
+    fn write(&self) -> Vec<u8>
     {
         let mut data: Vec<u8> = Vec::with_capacity(8);
 
@@ -240,9 +259,8 @@ impl UnknownTypeBody
     }
 }
 
-/*
- * Request message
- */
+
+/* ----------------- HTTP implimentation ----------------- */
 #[derive(Debug)]
 pub struct Request
 {
@@ -281,7 +299,7 @@ impl Request
 
     fn options(&mut self, data: Vec<u8>)
     {
-        let begin_request = BeginRequestBody::read(data);
+        let begin_request = BeginRequestBody::read(&data[..]);
         self.role = begin_request.role;
         self.flags = begin_request.flags;
     }
@@ -383,12 +401,12 @@ impl ParamFetcher
  */
 
 const HTTP_STATUS: &'static str = "Status";
+const HTTP_LINE: &'static str = "\r\n";
 
 #[derive(Debug)]
 pub struct Response
 {
     id: u16,
-    status: u16,
     header: HashMap<Vec<u8>, Vec<u8>>,
     body: Vec<u8>,
 }
@@ -397,10 +415,12 @@ impl Response
 {
     pub fn new() -> Response
     {
+        let mut header = HashMap::new();
+        header.insert(Vec::from(HTTP_STATUS.as_bytes()), Vec::from("200".as_bytes()));
+
         Response {
             id: 0,
-            status: 200,
-            header: HashMap::new(),
+            header: header,
             body: Vec::new(),
         }
     }
@@ -410,25 +430,17 @@ impl Response
         let mut result: Vec<u8> = Vec::new();
 
         // http headers
-        let new_line = b"\r\n".to_vec();
         let mut data: Vec<u8> = Vec::new();
-
-        data.extend_from_slice(HTTP_STATUS.as_bytes());
-        data.push(b':');
-        data.extend_from_slice(self.status.to_string().as_bytes());
 
         for (name, value) in &self.header {
             data.extend_from_slice(&name[..]);
             data.push(b':');
             data.extend_from_slice(&value[..]);
-            data.extend_from_slice(&new_line[..]);
+            data.extend_from_slice(HTTP_LINE.as_bytes());
         }
 
         // http headers delimiter
-        if self.header.is_empty() {
-            data.extend_from_slice(&new_line[..]);
-        }
-        data.extend_from_slice(&new_line[..]);
+        data.extend_from_slice(HTTP_LINE.as_bytes());
 
         // http body
         data.extend_from_slice(&self.body);
@@ -483,14 +495,14 @@ impl Response
         &self.id
     }
 
-    pub fn set_body<'a, T: AsBytes<'a>>(&mut self, data: T) -> &mut Response
+    pub fn set_body<T: AsBytes>(&mut self, data: T) -> &mut Response
     {
         self.body.extend_from_slice(data.as_bytes());
 
         self
     }
 
-    pub fn set_header<'a, T: AsBytes<'a>>(&mut self, key: T, value: T) -> &mut Response
+    pub fn set_header<T: AsBytes>(&mut self, key: T, value: T) -> &mut Response
     {
         self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
 
@@ -499,18 +511,18 @@ impl Response
 
     pub fn set_status(&mut self, code: u16) -> &mut Response
     {
-        self.status = code;
+        self.header.insert(Vec::from(HTTP_STATUS.as_bytes()), Vec::from(code.to_string().as_bytes()));
 
         self
     }
 }
 
-pub trait AsBytes<'a>
+pub trait AsBytes
 {
     fn as_bytes(&self) -> &[u8];
 }
 
-impl<'a> AsBytes<'a> for &'a String
+impl<'a> AsBytes for &'a String
 {
     fn as_bytes(&self) -> &[u8]
     {
@@ -518,7 +530,7 @@ impl<'a> AsBytes<'a> for &'a String
     }
 }
 
-impl<'a> AsBytes<'a> for &'a Vec<u8>
+impl<'a> AsBytes for &'a Vec<u8>
 {
     fn as_bytes(&self) -> &[u8]
     {
@@ -526,7 +538,7 @@ impl<'a> AsBytes<'a> for &'a Vec<u8>
     }
 }
 
-impl<'a> AsBytes<'a> for &'a str
+impl<'a> AsBytes for &'a str
 {
     fn as_bytes(&self) -> &[u8]
     {

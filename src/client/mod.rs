@@ -1,21 +1,21 @@
 pub mod model;
 
+use std::collections::HashMap;
+
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-
-use std::collections::HashMap;
 
 use std::thread;
 use std::sync::mpsc;
 
-pub type Request = model::Request;
+use self::model::{Readable, Writable};
 
 pub struct Client
 {
     listener: TcpListener,
-    list: Vec<Request>,
-    request_tx: mpsc::Sender<Request>,
-    request_rx: mpsc::Receiver<Request>,
+    list: Vec<model::Request>,
+    request_tx: mpsc::Sender<model::Request>,
+    request_rx: mpsc::Receiver<model::Request>,
 }
 
 impl Client
@@ -57,7 +57,7 @@ impl Iterator for Client
 {
     type Item = model::Request;
 
-    fn next(&mut self) -> Option<Request>
+    fn next(&mut self) -> Option<model::Request>
     {
         Some(self.request_rx.recv().unwrap())
     }
@@ -68,8 +68,8 @@ impl Iterator for Client
 pub struct Stream
 {
     _stream: TcpStream,
-    request_list: HashMap<u16, Request>,
-    parent_tx: mpsc::Sender<Request>,
+    request_list: HashMap<u16, model::Request>,
+    parent_tx: mpsc::Sender<model::Request>,
     tx: mpsc::Sender<model::Response>,
     rx: mpsc::Receiver<model::Response>,
     readable: bool,
@@ -77,7 +77,7 @@ pub struct Stream
 
 impl Stream
 {
-    fn new (stream: TcpStream, parent_tx: mpsc::Sender<Request>) -> Stream
+    fn new (stream: TcpStream, parent_tx: mpsc::Sender<model::Request>) -> Stream
     {
         let (tx, rx) = mpsc::channel();
         Stream {
