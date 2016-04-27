@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc;
 
-pub type Request = model::Request<Stream>;
+pub type Request = model::Request;
 
 pub struct Client
 {
@@ -55,7 +55,7 @@ impl Client
 
 impl Iterator for Client
 {
-    type Item = model::Request<Stream>;
+    type Item = model::Request;
 
     fn next(&mut self) -> Option<Request>
     {
@@ -70,8 +70,8 @@ pub struct Stream
     _stream: TcpStream,
     request_list: HashMap<u16, Request>,
     parent_tx: mpsc::Sender<Request>,
-    tx: mpsc::Sender<Stream>,
-    rx: mpsc::Receiver<Request>,
+    tx: mpsc::Sender<model::Response>,
+    rx: mpsc::Receiver<model::Response>,
     readable: bool,
 }
 
@@ -92,10 +92,13 @@ impl Stream
 
     pub fn write(&mut self)
     {
+        // @todo wait all request result
         let response = self.rx.recv().unwrap();
 
         match self._stream.write(&response.get_data()) {
-            Ok(_) => (),
+            Ok(_) => {
+                self.request_list.remove(response.get_id());
+            },
             _ => panic!("fcgi: failed sending response"),
         }
     }

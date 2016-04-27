@@ -244,19 +244,19 @@ impl UnknownTypeBody
  * Request message
  */
 #[derive(Debug)]
-pub struct Request<T>
+pub struct Request
 {
     pub id: u16,
     pub role: u16,
     pub flags: u8,
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
-    stream_tx: mpsc::Sender<T>,
+    stream_tx: mpsc::Sender<Response>,
 }
 
-impl<T> Request<T>
+impl Request
 {
-    pub fn new(id: u16, tx: mpsc::Sender<T>) -> Request<T>
+    pub fn new(id: u16, tx: mpsc::Sender<Response>) -> Request
     {
         Request {
             id: id,
@@ -296,6 +296,11 @@ impl<T> Request<T>
         self.body.extend_from_slice(&data);
     }
 
+    pub fn get_id(&self) -> u16
+    {
+        self.id
+    }
+
     pub fn body(&self) -> &Vec<u8>
     {
         &self.body
@@ -306,22 +311,10 @@ impl<T> Request<T>
         String::from_utf8_lossy(&self.body).into_owned()
     }
 
-    pub fn reply(&self) -> Response<Self>
+    pub fn reply(&self, mut response: Response)
     {
-        Response::new(self)
-    }
-}
-
-pub trait RequestTrait
-{
-    fn get_id(&self) -> u16;
-}
-
-impl<T> RequestTrait for Request<T>
-{
-    fn get_id(&self) -> u16
-    {
-        self.id
+        response.set_id(self.id);
+        self.stream_tx.send(response).unwrap();
     }
 }
 
@@ -392,20 +385,20 @@ impl ParamFetcher
 const HTTP_STATUS: &'static str = "Status";
 
 #[derive(Debug)]
-pub struct Response<'b, S: RequestTrait + 'b>
+pub struct Response
 {
-    request: &'b S,
+    id: u16,
     status: u16,
     header: HashMap<Vec<u8>, Vec<u8>>,
     body: Vec<u8>,
 }
 
-impl<'b, S: RequestTrait> Response<'b, S>
+impl Response
 {
-    fn new(request: &'b S) -> Response<S>
+    pub fn new() -> Response
     {
         Response {
-            request: request,
+            id: 0,
             status: 200,
             header: HashMap::new(),
             body: Vec::new(),
@@ -420,14 +413,21 @@ impl<'b, S: RequestTrait> Response<'b, S>
         let new_line = b"\r\n".to_vec();
         let mut data: Vec<u8> = Vec::new();
 
+        data.extend_from_slice(HTTP_STATUS.as_bytes());
+        data.push(b':');
+        data.extend_from_slice(self.status.to_string().as_bytes());
+
         for (name, value) in &self.header {
-            data.extend_from_slice(name.as_slice());
+            data.extend_from_slice(&name[..]);
             data.push(b':');
-            data.extend_from_slice(value.as_slice());
+            data.extend_from_slice(&value[..]);
             data.extend_from_slice(&new_line[..]);
         }
 
         // http headers delimiter
+        if self.header.is_empty() {
+            data.extend_from_slice(&new_line[..]);
+        }
         data.extend_from_slice(&new_line[..]);
 
         // http body
@@ -464,7 +464,7 @@ impl<'b, S: RequestTrait> Response<'b, S>
         let header = Header {
             version: VERSION_1,
             type_: type_,
-            request_id: self.request.get_id(),
+            request_id: self.id,
             content_length: length,
             padding_length: 0,
             reserved: [0; 1],
@@ -473,26 +473,36 @@ impl<'b, S: RequestTrait> Response<'b, S>
         header.write()
     }
 
-//    pub fn set_body<'a, T: AsBytes<'a>>(&mut self, data: T) -> &mut Response<S>
-//    {
-//        self.body.extend_from_slice(data.as_bytes());
-//
-//        self
-//    }
-//
-//    pub fn set_header<'a, T: AsBytes<'a>>(&mut self, key: T, value: T) -> &mut Response<S>
-//    {
-//        self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
-//
-//        self
-//    }
-//
-//    pub fn set_status(&mut self, code: u16) -> &mut Response<S>
-//    {
-//        self.status = code;
-//
-//        self
-//    }
+    fn set_id(&mut self, id: u16)
+    {
+        self.id = id;
+    }
+
+    pub fn get_id(&self) -> &u16
+    {
+        &self.id
+    }
+
+    pub fn set_body<'a, T: AsBytes<'a>>(&mut self, data: T) -> &mut Response
+    {
+        self.body.extend_from_slice(data.as_bytes());
+
+        self
+    }
+
+    pub fn set_header<'a, T: AsBytes<'a>>(&mut self, key: T, value: T) -> &mut Response
+    {
+        self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
+
+        self
+    }
+
+    pub fn set_status(&mut self, code: u16) -> &mut Response
+    {
+        self.status = code;
+
+        self
+    }
 }
 
 pub trait AsBytes<'a>

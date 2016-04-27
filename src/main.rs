@@ -2,7 +2,7 @@ use std::net::TcpListener;
 
 extern crate fcgi;
 
-use fcgi::client;
+use fcgi::client::{self, model};
 
 fn main() {
 
@@ -12,8 +12,12 @@ fn main() {
     client.init();
 
     for request in client {
-        println!("{:?}", request);
-//        request.reply().send();
+//        println!("{:?}", request);
+        let mut response = model::Response::new();
+
+        response.set_body("Hello!");
+        response.set_status(428);
+        request.reply(response);
     }
 
 }
