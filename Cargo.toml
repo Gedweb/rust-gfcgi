@@ -1,10 +1,19 @@
 [package]
 authors = ["Gedweb <vert@gedweb.name>"]
-name = "fcgi"
-version = "1.0.0"
+name = "gfcgi"
+version = "0.3.0"
+keywords = ["FastCGI", "fcgi", "http", "https"]
+readme = "README.md"
+license = "MIT"
+description = "Native Rust library for FastCGI"
+repository = "https://github.com/Gedweb/rust-gfcgi.git"
 
 [[bin]]
-name = "fcgi"
+name = "gfcgi"
+path = "example/main.rs"
+
+[lib]
+name = "gfcgi"
 
 [dependencies]
-byteorder = "0.4.2"
+byteorder = "0.5.1"
