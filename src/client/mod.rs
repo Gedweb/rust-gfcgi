@@ -31,7 +31,7 @@ impl Client
         }
     }
 
-    pub fn init(&self)
+    pub fn run(&self)
     {
         let request_tx = self.request_tx.clone();
         let listener = self.listener.try_clone().unwrap();
@@ -69,7 +69,7 @@ pub struct Stream
 {
     _stream: TcpStream,
     request_list: HashMap<u16, model::Request>,
-    parent_tx: mpsc::Sender<model::Request>,
+    client_tx: mpsc::Sender<model::Request>,
     tx: mpsc::Sender<model::Response>,
     rx: mpsc::Receiver<model::Response>,
     readable: bool,
@@ -77,20 +77,20 @@ pub struct Stream
 
 impl Stream
 {
-    fn new (stream: TcpStream, parent_tx: mpsc::Sender<model::Request>) -> Stream
+    fn new (stream: TcpStream, client_tx: mpsc::Sender<model::Request>) -> Stream
     {
         let (tx, rx) = mpsc::channel();
         Stream {
             _stream: stream,
             request_list: HashMap::new(),
-            parent_tx: parent_tx,
+            client_tx: client_tx,
             tx: tx,
             rx: rx,
             readable: true,
         }
     }
 
-    pub fn write(&mut self)
+    fn write(&mut self)
     {
         // @todo wait all request result
         let response = self.rx.recv().unwrap();
@@ -103,7 +103,7 @@ impl Stream
         }
     }
 
-    pub fn read(&mut self)
+    fn read(&mut self)
     {
         'read: while self.readable {
 
@@ -130,7 +130,7 @@ impl Stream
             if header.content_length == 0 {
                 match header.type_ {
                     model::STDIN => {
-                        self.parent_tx.send(self.request_list.remove(&request_id).unwrap()).unwrap();
+                        self.client_tx.send(self.request_list.remove(&request_id).unwrap()).unwrap();
                     },
                     model::PARAMS | model::DATA => continue 'read,
                     _ => (),

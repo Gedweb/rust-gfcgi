@@ -7,9 +7,9 @@ use fcgi::client::{self, model};
 fn main() {
 
     let listener = TcpListener::bind("127.0.0.1:4128").unwrap();
-    let client: client::Client = client::Client::new(listener);
+    let client = client::Client::new(listener);
 
-    client.init();
+    client.run();
 
     for request in client {
 //        println!("{:?}", request);
