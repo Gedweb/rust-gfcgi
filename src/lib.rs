@@ -70,7 +70,7 @@ impl Iterator for Client
 pub struct Stream
 {
     _stream: TcpStream,
-    request_list: HashMap<u16, model::Request>,
+    request_count: u16,
     client_tx: mpsc::Sender<model::Request>,
     tx: mpsc::Sender<model::Response>,
     rx: mpsc::Receiver<model::Response>,
@@ -84,7 +84,7 @@ impl Stream
         let (tx, rx) = mpsc::channel();
         Stream {
             _stream: stream,
-            request_list: HashMap::new(),
+            request_count: 0,
             client_tx: client_tx,
             tx: tx,
             rx: rx,
@@ -94,19 +94,17 @@ impl Stream
 
     fn write(&mut self)
     {
-        // @todo wait all request result
-        let response = self.rx.recv().unwrap();
-
-        match self._stream.write(&response.get_data()) {
-            Ok(_) => {
-                self.request_list.remove(response.get_id());
-            },
-            _ => panic!("fcgi: failed sending response"),
+        while self.request_count != 0 {
+            let response = self.rx.recv().unwrap();
+            self._stream.write(&response.get_data()).unwrap();
+            self.request_count -= 1;
         }
     }
 
     fn read(&mut self)
     {
+        let mut request_list: HashMap<u16, model::Request> = HashMap::new();
+
         'read: while self.readable {
 
             let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
@@ -119,10 +117,11 @@ impl Stream
             let header = model::Header::read(&buf);
             let request_id = header.request_id.clone();
 
-            match self.request_list.get(&request_id) {
+            match request_list.get(&request_id) {
                 Some(..) => (),
                 None => {
-                    self.request_list.insert(request_id.clone(), model::Request::new(request_id.clone(), self.tx.clone()));
+                    request_list.insert(request_id.clone(), model::Request::new(request_id.clone(), self.tx.clone()));
+                    self.request_count += 1;
                 },
             };
 
@@ -132,7 +131,7 @@ impl Stream
             if header.content_length == 0 {
                 match header.type_ {
                     model::STDIN => {
-                        self.client_tx.send(self.request_list.remove(&request_id).unwrap()).unwrap();
+                        self.client_tx.send(request_list.remove(&request_id).unwrap()).unwrap();
                     },
                     model::PARAMS | model::DATA => continue 'read,
                     _ => (),
@@ -145,12 +144,12 @@ impl Stream
 
                 match self._stream.read(&mut body_data) {
                     Ok(readed_len) if readed_len == len =>
-                        self.request_list.get_mut(&request_id).unwrap().add_record(&header, body_data),
+                        request_list.get_mut(&request_id).unwrap().add_record(&header, body_data),
                     _  => panic!("Wrong body length"),
                 }
             }
 
-            if self.request_list.is_empty() {
+            if request_list.is_empty() {
                 self.readable = false;
             }
         }
