@@ -134,7 +134,7 @@ pub trait Writable {
     fn write(&self) -> Vec<u8>;
 }
 
-/* ----------------- implimentation ----------------- */
+/* ----------------- implementation ----------------- */
 
 impl Readable for Header
 {
@@ -260,15 +260,15 @@ impl Writable for UnknownTypeBody
 }
 
 
-/* ----------------- HTTP implimentation ----------------- */
+/* ----------------- HTTP implementation ----------------- */
 #[derive(Debug)]
 pub struct Request
 {
-    pub id: u16,
-    pub role: u16,
-    pub flags: u8,
-    pub headers: HashMap<String, String>,
-    pub body: Vec<u8>,
+    id: u16,
+    role: u16,
+    flags: u8,
+    headers: HashMap<Vec<u8>, Vec<u8>>,
+    body: Vec<u8>,
     stream_tx: mpsc::Sender<Response>,
 }
 
@@ -284,17 +284,6 @@ impl Request
             body: Vec::new(),
             stream_tx: tx,
         }
-    }
-
-    pub fn add_record(&mut self, header: &Header, body_data: Vec<u8>)
-    {
-        match header.type_ {
-            BEGIN_REQUEST => self.options(body_data),
-            PARAMS => self.param(body_data),
-            STDIN => self.stdin(body_data),
-            DATA => self.stdin(body_data),
-            _ => panic!("Undeclarated fastcgi header"),
-        };
     }
 
     fn options(&mut self, data: Vec<u8>)
@@ -314,9 +303,25 @@ impl Request
         self.body.extend_from_slice(&data);
     }
 
-    pub fn get_id(&self) -> u16
+    pub fn add_record(&mut self, header: &Header, body_data: Vec<u8>)
+    {
+        match header.type_ {
+            BEGIN_REQUEST => self.options(body_data),
+            PARAMS => self.param(body_data),
+            STDIN => self.stdin(body_data),
+            DATA => self.stdin(body_data),
+            _ => panic!("Undeclarated fastcgi header"),
+        };
+    }
+
+    pub fn id(&self) -> u16
     {
         self.id
+    }
+
+    pub fn header<T: AsBytes>(&self, key: T) -> Option<&Vec<u8>>
+    {
+        self.headers.get(key.as_bytes())
     }
 
     pub fn body(&self) -> &Vec<u8>
@@ -355,9 +360,9 @@ impl ParamFetcher
         }
     }
 
-    fn parse_param(&mut self) -> HashMap<String, String>
+    fn parse_param(&mut self) -> HashMap<Vec<u8>, Vec<u8>>
     {
-        let mut param: HashMap<String, String> = HashMap::new();
+        let mut param: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
 
         let data_length: usize = self.data.len();
 
@@ -366,10 +371,10 @@ impl ParamFetcher
             let key_length: usize = self.param_length();
             let value_length: usize = self.param_length();
 
-            let key: String = String::from_utf8_lossy(&self.data[self.pos .. self.pos+key_length]).into_owned();
+            let key = Vec::from(&self.data[self.pos .. self.pos+key_length]);
             self.pos += key_length;
 
-            let value: String = String::from_utf8_lossy(&self.data[self.pos .. self.pos+value_length]).into_owned();
+            let value = Vec::from(&self.data[self.pos .. self.pos+value_length]);
             self.pos += value_length;
 
             param.insert(key, value);
@@ -490,26 +495,27 @@ impl Response
         self.id = id;
     }
 
-    pub fn get_id(&self) -> &u16
+    pub fn id(&self) -> &u16
     {
         &self.id
     }
 
-    pub fn set_body<T: AsBytes>(&mut self, data: T) -> &mut Response
+    pub fn body<T: AsBytes>(&mut self, data: T) -> &mut Response
     {
+        self.body.clear();
         self.body.extend_from_slice(data.as_bytes());
 
         self
     }
 
-    pub fn set_header<T: AsBytes>(&mut self, key: T, value: T) -> &mut Response
+    pub fn header<T: AsBytes>(&mut self, key: T, value: T) -> &mut Response
     {
         self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
 
         self
     }
 
-    pub fn set_status(&mut self, code: u16) -> &mut Response
+    pub fn status(&mut self, code: u16) -> &mut Response
     {
         self.header.insert(Vec::from(HTTP_STATUS.as_bytes()), Vec::from(code.to_string().as_bytes()));
 
