@@ -1,6 +1,0 @@
-{
-  "name": "Rust-gfcgi",
-  "tagline": "Native Rust library for FastCGI",
-  "body": "#The FastCGI Rust implementation.\r\n\r\n**gfcgi** a native Rust library for FastCGI.  \r\nLibrary is supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.  \r\nFor details look example directory.\r\n\r\nFastCGI it's great solutions to handling HTTP-requests without overhead. Completely supporting HTTP or HTTPS by any popular web-servers.\r\n",
-  "note": "Don't delete this file! It's used internally to help with page regeneration."
-}
