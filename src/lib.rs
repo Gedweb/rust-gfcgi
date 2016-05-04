@@ -1,3 +1,35 @@
+/*!
+This crate provieds FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.
+
+# Examples
+```
+extern crate gfcgi;
+use std::thread;
+
+fn main() {
+    let client = gfcgi::Client::bind("127.0.0.1:4128");
+
+    client.run(); // spawn tread
+    client.run(); // spawn one more
+
+    for request in client {
+
+        thread::spawn(move || {
+            let mut response = gfcgi::model::Response::new();
+
+            // set conetent
+            response.body("Welcome message!");
+            // append header
+            response.header("Content-Type", "text/plain; charset=utf-8");
+
+            request.reply(response);
+        });
+    }
+}
+
+```
+*/
+
 pub mod model;
 
 use std::collections::HashMap;
