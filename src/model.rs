@@ -1,3 +1,5 @@
+/// Contain constants and models for fcgi data records.
+
 /* ----------------- entity ----------------- */
 use std::collections::HashMap;
 use std::sync::mpsc;
@@ -7,7 +9,7 @@ use std::sync::mpsc;
  */
 pub const LISTENSOCK_FILENO: u8 = 0;
 
-#[derive(Debug)]
+/// fcgi record header
 pub struct Header
 {
     pub version: u8,
@@ -52,7 +54,7 @@ pub const MAXTYPE: &'static u8  = &UNKNOWN_TYPE;
  */
 pub const NULL_REQUEST_ID: u8 = 0;
 
-
+/// begin record
 pub struct BeginRequestBody
 {
     role: u16,
@@ -60,6 +62,7 @@ pub struct BeginRequestBody
     reserved: [u8; 5],
 }
 
+#[cfg(feature = "struct_record")]
 struct BeginRequestRecord
 {
     header: Header,
@@ -71,11 +74,13 @@ struct BeginRequestRecord
  */
 pub const KEEP_CONN: u8  = 1;
 
-/*
- * Values for role component of BeginRequestBody
- */
+/// Value role component of BeginRequestBody
 pub const RESPONDER: u8  = 1;
+
+/// Value role component of BeginRequestBody
 pub const AUTHORIZER: u8 = 2;
+
+/// Value role component of BeginRequestBody
 pub const FILTER: u8     = 3;
 
 
@@ -86,6 +91,7 @@ struct EndRequestBody
     reserved: [u8; 3],
 }
 
+#[cfg(feature = "struct_record")]
 struct EndRequestRecord
 {
     header: Header,
@@ -115,6 +121,7 @@ struct UnknownTypeBody
     reserved: [u8; 7],
 }
 
+#[cfg(feature = "struct_record")]
 struct UnknownTypeRecord
 {
     pub header: Header,
@@ -124,13 +131,16 @@ struct UnknownTypeRecord
 /* ----------------- repository ----------------- */
 
 extern crate byteorder;
+#[doc(no_inline)]
 use self::byteorder::{ByteOrder, BigEndian};
 
 pub trait Readable {
+/// Must to decode bytes to object
     fn read(data: &[u8]) -> Self;
 }
 
 pub trait Writable {
+/// Must to encode object to bytes
     fn write(&self) -> Vec<u8>;
 }
 
@@ -262,6 +272,7 @@ impl Writable for UnknownTypeBody
 
 /* ----------------- HTTP implementation ----------------- */
 #[derive(Debug)]
+/// HTTP implementation of request
 pub struct Request
 {
     id: u16,
@@ -274,6 +285,7 @@ pub struct Request
 
 impl Request
 {
+    /// Constructor
     pub fn new(id: u16, tx: mpsc::Sender<Response>) -> Request
     {
         Request {
@@ -286,6 +298,7 @@ impl Request
         }
     }
 
+    /// Set request options
     fn options(&mut self, data: Vec<u8>)
     {
         let begin_request = BeginRequestBody::read(&data[..]);
@@ -293,16 +306,19 @@ impl Request
         self.flags = begin_request.flags;
     }
 
+    /// Read HTTP-headers pairs
     fn param(&mut self, data: Vec<u8>)
     {
         self.headers.extend(ParamFetcher::new(data).parse_param());
     }
 
+    /// Request body data
     fn stdin(&mut self, data: Vec<u8>)
     {
         self.body.extend_from_slice(&data);
     }
 
+    /// Parse request record from stream
     pub fn add_record(&mut self, header: &Header, body_data: Vec<u8>)
     {
         match header.type_ {
@@ -314,19 +330,37 @@ impl Request
         };
     }
 
+    /// Get request id
+    ///
+    /// Note that id used by fcgi only
     pub fn id(&self) -> u16
     {
         self.id
     }
 
-    pub fn header<T: AsBytes>(&self, key: T) -> Option<&Vec<u8>>
+    /// Get http header as bytes
+    pub fn header_raw<T: AsBytes>(&self, key: T) -> Option<&Vec<u8>>
     {
         self.headers.get(key.as_bytes())
     }
 
-    pub fn body(&self) -> &Vec<u8>
+    /// Get http header as String
+    pub fn header<T: AsBytes>(&self, key: T) -> Option<String>
+    {
+        match self.headers.get(key.as_bytes()) {
+            Some(value) => String::from_utf8(value.clone()).ok(),
+            None => None,
+        }
+    }
+
+    pub fn body_raw(&self) -> &Vec<u8>
     {
         &self.body
+    }
+
+    pub fn body(&self) -> Option<String>
+    {
+        String::from_utf8(self.body.clone()).ok()
     }
 
     pub fn body_string(&self) -> String

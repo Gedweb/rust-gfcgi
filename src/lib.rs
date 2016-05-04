@@ -1,11 +1,9 @@
-#![allow(dead_code)]
-
 pub mod model;
 
 use std::collections::HashMap;
 
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 use std::thread;
 use std::sync::mpsc;
@@ -15,19 +13,17 @@ use model::{Readable, Writable};
 pub struct Client
 {
     listener: TcpListener,
-    list: Vec<model::Request>,
     request_tx: mpsc::Sender<model::Request>,
     request_rx: mpsc::Receiver<model::Request>,
 }
 
 impl Client
 {
-    pub fn new(listener: TcpListener) -> Client
+    pub fn bind<A: ToSocketAddrs>(addr: A) -> Client
     {
         let (tx, rx) = mpsc::channel();
         Client {
-            listener: listener,
-            list: Vec::new(),
+            listener: TcpListener::bind(addr).unwrap(),
             request_tx: tx,
             request_rx: rx,
         }

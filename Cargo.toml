@@ -4,18 +4,20 @@ name = "gfcgi"
 version = "0.3.0"
 keywords = ["FastCGI", "fcgi", "http", "https"]
 readme = "README.md"
-license = "MIT"
-description = "Native Rust library for FastCGI"
+license-file = "LICENSE"
+description = "Native Rust library for FastCGI with multithreading and multiplexing support"
+documentation = "https://gedweb.github.io/rust-gfcgi/"
 repository = "https://github.com/Gedweb/rust-gfcgi.git"
 exclude = [
     ".project",
-    ".settings*",
+    ".settings/*",
     "rustfmt.toml",
 ]
 
 [[bin]]
 name = "gfcgi"
 path = "example/main.rs"
+doc = false
 
 [lib]
 name = "gfcgi"
