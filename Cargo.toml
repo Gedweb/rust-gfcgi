@@ -6,7 +6,7 @@ keywords = ["FastCGI", "fcgi", "http", "https"]
 readme = "README.md"
 license-file = "LICENSE"
 description = "Native Rust library for FastCGI with multithreading and multiplexing support"
-documentation = "https://gedweb.github.io/rust-gfcgi/"
+documentation = "http://gedweb.github.io/rust-gfcgi/gfcgi/"
 repository = "https://github.com/Gedweb/rust-gfcgi.git"
 exclude = [
     ".project",
