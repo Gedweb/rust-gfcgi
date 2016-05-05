@@ -46,22 +46,14 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-4' class='srclink' href='../../src/gfcgi/src/model.rs.html#2-553' title='goto source code'>[src]</a></span></h1>
+        </span><a id='src-4' class='srclink' href='../../src/gfcgi/src/model.rs.html#1-645' title='goto source code'>[src]</a></span></h1>
 <h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
-                    <tr class=' module-item'>
-                        <td><a class='struct' href='struct.BeginRequestBody.html'
-                               title='gfcgi::model::BeginRequestBody'>BeginRequestBody</a></td>
-                        <td class='docblock short'>
-                             
-                        </td>
-                    </tr>
-                
                     <tr class=' module-item'>
                         <td><a class='struct' href='struct.Header.html'
                                title='gfcgi::model::Header'>Header</a></td>
                         <td class='docblock short'>
-                             
+                             <p>FCGI record header</p>
                         </td>
                     </tr>
                 
@@ -69,7 +61,7 @@
                         <td><a class='struct' href='struct.Request.html'
                                title='gfcgi::model::Request'>Request</a></td>
                         <td class='docblock short'>
-                             
+                             <p>HTTP implementation of request</p>
                         </td>
                     </tr>
                 
@@ -77,7 +69,7 @@
                         <td><a class='struct' href='struct.Response.html'
                                title='gfcgi::model::Response'>Response</a></td>
                         <td class='docblock short'>
-                             
+                             <p>HTTP implementation of response</p>
                         </td>
                     </tr>
                 </table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
@@ -86,7 +78,7 @@
                         <td><a class='constant' href='constant.ABORT_REQUEST.html'
                                title='gfcgi::model::ABORT_REQUEST'>ABORT_REQUEST</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -94,7 +86,8 @@
                         <td><a class='constant' href='constant.AUTHORIZER.html'
                                title='gfcgi::model::AUTHORIZER'>AUTHORIZER</a></td>
                         <td class='docblock short'>
-                             
+                             <p>FastCGI role
+authorized/unauthorized decision</p>
                         </td>
                     </tr>
                 
@@ -102,7 +95,7 @@
                         <td><a class='constant' href='constant.BEGIN_REQUEST.html'
                                title='gfcgi::model::BEGIN_REQUEST'>BEGIN_REQUEST</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -110,7 +103,7 @@
                         <td><a class='constant' href='constant.CANT_MPX_CONN.html'
                                title='gfcgi::model::CANT_MPX_CONN'>CANT_MPX_CONN</a></td>
                         <td class='docblock short'>
-                             
+                             <p>protocol_status component of EndRequestBody</p>
                         </td>
                     </tr>
                 
@@ -118,7 +111,7 @@
                         <td><a class='constant' href='constant.DATA.html'
                                title='gfcgi::model::DATA'>DATA</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -126,7 +119,7 @@
                         <td><a class='constant' href='constant.END_REQUEST.html'
                                title='gfcgi::model::END_REQUEST'>END_REQUEST</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -134,7 +127,8 @@
                         <td><a class='constant' href='constant.FILTER.html'
                                title='gfcgi::model::FILTER'>FILTER</a></td>
                         <td class='docblock short'>
-                             
+                             <p>FastCGI role
+extra stream of data from a file</p>
                         </td>
                     </tr>
                 
@@ -142,7 +136,7 @@
                         <td><a class='constant' href='constant.GET_VALUES.html'
                                title='gfcgi::model::GET_VALUES'>GET_VALUES</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -150,7 +144,7 @@
                         <td><a class='constant' href='constant.GET_VALUES_RESULT.html'
                                title='gfcgi::model::GET_VALUES_RESULT'>GET_VALUES_RESULT</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -158,7 +152,7 @@
                         <td><a class='constant' href='constant.HEADER_LEN.html'
                                title='gfcgi::model::HEADER_LEN'>HEADER_LEN</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Number of bytes in a Header.</p>
                         </td>
                     </tr>
                 
@@ -166,7 +160,7 @@
                         <td><a class='constant' href='constant.KEEP_CONN.html'
                                title='gfcgi::model::KEEP_CONN'>KEEP_CONN</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Mask for flags component of BeginRequestBody</p>
                         </td>
                     </tr>
                 
@@ -174,15 +168,7 @@
                         <td><a class='constant' href='constant.LISTENSOCK_FILENO.html'
                                title='gfcgi::model::LISTENSOCK_FILENO'>LISTENSOCK_FILENO</a></td>
                         <td class='docblock short'>
-                             
-                        </td>
-                    </tr>
-                
-                    <tr class=' module-item'>
-                        <td><a class='constant' href='constant.MAXTYPE.html'
-                               title='gfcgi::model::MAXTYPE'>MAXTYPE</a></td>
-                        <td class='docblock short'>
-                             
+                             <p>Listening socket file number</p>
                         </td>
                     </tr>
                 
@@ -190,7 +176,7 @@
                         <td><a class='constant' href='constant.MAX_CONNS.html'
                                title='gfcgi::model::MAX_CONNS'>MAX_CONNS</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Names for GET_VALUES / GET_VALUES_RESULT records.</p>
                         </td>
                     </tr>
                 
@@ -198,7 +184,7 @@
                         <td><a class='constant' href='constant.MAX_LENGTH.html'
                                title='gfcgi::model::MAX_LENGTH'>MAX_LENGTH</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Maximum length per record</p>
                         </td>
                     </tr>
                 
@@ -206,7 +192,7 @@
                         <td><a class='constant' href='constant.MAX_REQS.html'
                                title='gfcgi::model::MAX_REQS'>MAX_REQS</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Names for GET_VALUES / GET_VALUES_RESULT records.</p>
                         </td>
                     </tr>
                 
@@ -214,7 +200,7 @@
                         <td><a class='constant' href='constant.MPXS_CONNS.html'
                                title='gfcgi::model::MPXS_CONNS'>MPXS_CONNS</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Names for GET_VALUES / GET_VALUES_RESULT records.</p>
                         </td>
                     </tr>
                 
@@ -222,7 +208,7 @@
                         <td><a class='constant' href='constant.NULL_REQUEST_ID.html'
                                title='gfcgi::model::NULL_REQUEST_ID'>NULL_REQUEST_ID</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Default request id component of Header</p>
                         </td>
                     </tr>
                 
@@ -230,7 +216,7 @@
                         <td><a class='constant' href='constant.OVERLOADED.html'
                                title='gfcgi::model::OVERLOADED'>OVERLOADED</a></td>
                         <td class='docblock short'>
-                             
+                             <p>protocol_status component of EndRequestBody</p>
                         </td>
                     </tr>
                 
@@ -238,7 +224,7 @@
                         <td><a class='constant' href='constant.PARAMS.html'
                                title='gfcgi::model::PARAMS'>PARAMS</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -246,7 +232,7 @@
                         <td><a class='constant' href='constant.REQUEST_COMPLETE.html'
                                title='gfcgi::model::REQUEST_COMPLETE'>REQUEST_COMPLETE</a></td>
                         <td class='docblock short'>
-                             
+                             <p>protocol_status component of EndRequestBody</p>
                         </td>
                     </tr>
                 
@@ -254,7 +240,8 @@
                         <td><a class='constant' href='constant.RESPONDER.html'
                                title='gfcgi::model::RESPONDER'>RESPONDER</a></td>
                         <td class='docblock short'>
-                             
+                             <p>FastCGI role
+emulated CGI/1.1 program</p>
                         </td>
                     </tr>
                 
@@ -262,7 +249,7 @@
                         <td><a class='constant' href='constant.STDERR.html'
                                title='gfcgi::model::STDERR'>STDERR</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -270,7 +257,7 @@
                         <td><a class='constant' href='constant.STDIN.html'
                                title='gfcgi::model::STDIN'>STDIN</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -278,7 +265,7 @@
                         <td><a class='constant' href='constant.STDOUT.html'
                                title='gfcgi::model::STDOUT'>STDOUT</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -286,7 +273,7 @@
                         <td><a class='constant' href='constant.UNKNOWN_ROLE.html'
                                title='gfcgi::model::UNKNOWN_ROLE'>UNKNOWN_ROLE</a></td>
                         <td class='docblock short'>
-                             
+                             <p>protocol_status component of EndRequestBody</p>
                         </td>
                     </tr>
                 
@@ -294,7 +281,7 @@
                         <td><a class='constant' href='constant.UNKNOWN_TYPE.html'
                                title='gfcgi::model::UNKNOWN_TYPE'>UNKNOWN_TYPE</a></td>
                         <td class='docblock short'>
-                             
+                             <p>type component of Header</p>
                         </td>
                     </tr>
                 
@@ -302,7 +289,7 @@
                         <td><a class='constant' href='constant.VERSION_1.html'
                                title='gfcgi::model::VERSION_1'>VERSION_1</a></td>
                         <td class='docblock short'>
-                             
+                             <p>version component of Header</p>
                         </td>
                     </tr>
                 </table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
@@ -311,7 +298,7 @@
                         <td><a class='trait' href='trait.AsBytes.html'
                                title='gfcgi::model::AsBytes'>AsBytes</a></td>
                         <td class='docblock short'>
-                             
+                             <p>Provide accepting reference to some data types</p>
                         </td>
                     </tr>
                 

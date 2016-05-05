@@ -46,8 +46,36 @@
             <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                 [<span class='inner'>&#x2212;</span>]
             </a>
-        </span><a id='src-0' class='srclink' href='../src/gfcgi/src/lib.rs.html#1-157' title='goto source code'>[src]</a></span></h1>
-<h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+        </span><a id='src-0' class='srclink' href='../src/gfcgi/src/lib.rs.html#1-185' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>This crate provieds FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.</p>
+
+<h1 id='examples' class='section-header'><a href='#examples'>Examples</a></h1>
+<pre class='rust rust-example-rendered'>
+<span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>gfcgi</span>;
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>thread</span>;
+
+<span class='kw'>fn</span> <span class='ident'>main</span>() {
+    <span class='kw'>let</span> <span class='ident'>client</span> <span class='op'>=</span> <span class='ident'>gfcgi</span>::<span class='ident'>Client</span>::<span class='ident'>bind</span>(<span class='string'>&quot;127.0.0.1:4128&quot;</span>);
+
+    <span class='ident'>client</span>.<span class='ident'>run</span>(); <span class='comment'>// spawn tread</span>
+    <span class='ident'>client</span>.<span class='ident'>run</span>(); <span class='comment'>// spawn one more</span>
+
+    <span class='kw'>for</span> <span class='ident'>request</span> <span class='kw'>in</span> <span class='ident'>client</span> {
+
+        <span class='ident'>thread</span>::<span class='ident'>spawn</span>(<span class='kw'>move</span> <span class='op'>||</span> {
+            <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>response</span> <span class='op'>=</span> <span class='ident'>gfcgi</span>::<span class='ident'>model</span>::<span class='ident'>Response</span>::<span class='ident'>new</span>();
+
+            <span class='comment'>// set conetent</span>
+            <span class='ident'>response</span>.<span class='ident'>body</span>(<span class='string'>&quot;Welcome message!&quot;</span>);
+            <span class='comment'>// append header</span>
+            <span class='ident'>response</span>.<span class='ident'>header</span>(<span class='string'>&quot;Content-Type&quot;</span>, <span class='string'>&quot;text/plain; charset=utf-8&quot;</span>);
+
+            <span class='ident'>request</span>.<span class='ident'>reply</span>(<span class='ident'>response</span>);
+        });
+    }
+}
+</pre>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
 <table>
                     <tr class=' module-item'>
                         <td><a class='mod' href='model/index.html'
@@ -61,14 +89,6 @@
                     <tr class=' module-item'>
                         <td><a class='struct' href='struct.Client.html'
                                title='gfcgi::Client'>Client</a></td>
-                        <td class='docblock short'>
-                             
-                        </td>
-                    </tr>
-                
-                    <tr class=' module-item'>
-                        <td><a class='struct' href='struct.Stream.html'
-                               title='gfcgi::Stream'>Stream</a></td>
                         <td class='docblock short'>
                              
                         </td>

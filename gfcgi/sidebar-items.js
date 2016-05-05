@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["model",""]],"struct":[["Client",""],["Stream",""]]});
+initSidebarItems({"mod":[["model",""]],"struct":[["Client",""]]});
