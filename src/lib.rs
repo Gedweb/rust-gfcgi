@@ -95,7 +95,7 @@ impl Iterator for Client
 }
 
 #[derive(Debug)]
-pub struct Stream
+struct Stream
 {
     _stream: TcpStream,
     request_count: u16,

@@ -22,6 +22,7 @@ pub struct Header
 pub const MAX_LENGTH: usize = 0xffff;
 
 /// Number of bytes in a Header.
+///
 /// Future versions of the protocol will not reduce this number.
 pub const HEADER_LEN: usize = 8;
 
@@ -89,7 +90,7 @@ pub const UNKNOWN_TYPE: u8      = 11;
 pub const NULL_REQUEST_ID: u16 = 0;
 
 /// Begin record
-pub struct BeginRequestBody
+struct BeginRequestBody
 {
     role: u16,
     flags: u8,
