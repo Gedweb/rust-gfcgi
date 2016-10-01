@@ -1,12 +1,12 @@
 [package]
 authors = ["Gedweb <inbox@gedweb.name>"]
 name = "gfcgi"
-version = "0.3.0"
+version = "0.4.0"
 keywords = ["FastCGI", "fcgi", "http", "https"]
 readme = "README.md"
 license-file = "LICENSE"
 description = "Native Rust library for FastCGI with multithreading and multiplexing support"
-documentation = "https://gedweb.github.io/rust-gfcgi/"
+documentation = "http://gedweb.github.io/rust-gfcgi/gfcgi/"
 repository = "https://github.com/Gedweb/rust-gfcgi.git"
 exclude = [
     ".project",
@@ -23,4 +23,5 @@ doc = false
 name = "gfcgi"
 
 [dependencies]
-byteorder = "^0.5.1"
+url = "^1.2.1"
+byteorder = "^0.5.3"

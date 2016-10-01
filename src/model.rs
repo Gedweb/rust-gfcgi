@@ -1,8 +1,7 @@
 /// Contain constants and models for fcgi data records.
 
-/* ----------------- entity ----------------- */
+// ----------------- entity -----------------
 use std::collections::HashMap;
-use std::sync::mpsc;
 
 /// Listening socket file number
 pub const LISTENSOCK_FILENO: u8 = 0;
@@ -22,6 +21,7 @@ pub struct Header
 pub const MAX_LENGTH: usize = 0xffff;
 
 /// Number of bytes in a Header.
+///
 /// Future versions of the protocol will not reduce this number.
 pub const HEADER_LEN: usize = 8;
 
@@ -31,48 +31,48 @@ pub const VERSION_1: u8 = 1;
 /// type component of Header
 /// # Request
 /// The Web server sends a FCGI_BEGIN_REQUEST record to start a request
-pub const BEGIN_REQUEST: u8     = 1;
+pub const BEGIN_REQUEST: u8 = 1;
 
 /// type component of Header
 /// # Request
 /// A Web server aborts a FastCGI request when an HTTP client closes its transport connection while the FastCGI request is running on behalf of that client
-pub const ABORT_REQUEST: u8     = 2;
+pub const ABORT_REQUEST: u8 = 2;
 
 /// type component of Header
 /// # Response
 /// The application sends a FCGI_END_REQUEST record to terminate a request
-pub const END_REQUEST: u8       = 3;
+pub const END_REQUEST: u8 = 3;
 
 /// type component of Header
 /// # Request
 /// Receive name-value pairs from the Web server to the application
-pub const PARAMS: u8            = 4;
+pub const PARAMS: u8 = 4;
 
 /// type component of Header
 /// # Request
 /// Byte Stream
-pub const STDIN: u8             = 5;
+pub const STDIN: u8 = 5;
 
 /// type component of Header
 /// # Response
 /// Byte Stream
-pub const STDOUT: u8            = 6;
+pub const STDOUT: u8 = 6;
 
 /// type component of Header
 /// # Response
 /// Byte Stream
-pub const STDERR: u8            = 7;
+pub const STDERR: u8 = 7;
 
 /// type component of Header
 /// # Request
 /// Byte Stream
-pub const DATA: u8              = 8;
+pub const DATA: u8 = 8;
 
 /// type component of Header
 /// # Request
 /// The Web server can query specific variables within the application
 /// The application receives.
-pub const GET_VALUES: u8        = 9;
+pub const GET_VALUES: u8 = 9;
 
 /// type component of Header
 /// # Response
@@ -83,13 +83,13 @@ pub const GET_VALUES_RESULT: u8 = 10;
 /// type component of Header
 ///
 /// Unrecognized management record
-pub const UNKNOWN_TYPE: u8      = 11;
+pub const UNKNOWN_TYPE: u8 = 11;
 
 /// Default request id component of Header
 pub const NULL_REQUEST_ID: u16 = 0;
 
 /// Begin record
-pub struct BeginRequestBody
+struct BeginRequestBody
 {
     role: u16,
     flags: u8,
@@ -104,11 +104,11 @@ struct BeginRequestRecord
 }
 
 /// Mask for flags component of BeginRequestBody
-pub const KEEP_CONN: u8  = 1;
+pub const KEEP_CONN: u8 = 1;
 
 /// FastCGI role
 /// emulated CGI/1.1 program
-pub const RESPONDER: u8  = 1;
+pub const RESPONDER: u8 = 1;
 
 /// FastCGI role
 /// authorized/unauthorized decision
@@ -116,7 +116,7 @@ pub const AUTHORIZER: u8 = 2;
 
 /// FastCGI role
 /// extra stream of data from a file
-pub const FILTER: u8     = 3;
+pub const FILTER: u8 = 3;
 
 /// End record
 struct EndRequestBody
@@ -141,17 +141,17 @@ pub const REQUEST_COMPLETE: u8 = 0;
 /// protocol_status component of EndRequestBody
 ///
 /// Application is designed to process one request at a time per connection
-pub const CANT_MPX_CONN: u8    = 1;
+pub const CANT_MPX_CONN: u8 = 1;
 
 /// protocol_status component of EndRequestBody
 ///
 /// The application runs out of some resource, e.g. database connections
-pub const OVERLOADED: u8       = 2;
+pub const OVERLOADED: u8 = 2;
 
 /// protocol_status component of EndRequestBody
 ///
 /// Web server has specified a role that is unknown to the application
-pub const UNKNOWN_ROLE: u8     = 3;
+pub const UNKNOWN_ROLE: u8 = 3;
 
 /// Names for GET_VALUES / GET_VALUES_RESULT records.
 ///
@@ -182,23 +182,23 @@ struct UnknownTypeRecord
     pub body: UnknownTypeBody,
 }
 
-/* ----------------- repository ----------------- */
+// ----------------- repository -----------------
 
 extern crate byteorder;
 
 use self::byteorder::{ByteOrder, BigEndian};
 
 pub trait Readable {
-/// Must to decode bytes to object
+    /// Must to decode bytes to object
     fn read(data: &[u8]) -> Self;
 }
 
 pub trait Writable {
-/// Must to encode object to bytes
+    /// Must to encode object to bytes
     fn write(&self) -> Vec<u8>;
 }
 
-/* ----------------- implementation ----------------- */
+// ----------------- implementation -----------------
 
 impl Readable for Header
 {
@@ -207,8 +207,8 @@ impl Readable for Header
         Header {
             version: data[0],
             type_: data[1],
-            request_id: BigEndian::read_u16(&data[2 .. 4]),
-            content_length: BigEndian::read_u16(&data[4 .. 6]),
+            request_id: BigEndian::read_u16(&data[2..4]),
+            content_length: BigEndian::read_u16(&data[4..6]),
             padding_length: data[6],
             reserved: [0; 1],
         }
@@ -245,7 +245,7 @@ impl Readable for BeginRequestBody
     fn read(data: &[u8]) -> BeginRequestBody
     {
         BeginRequestBody {
-            role: BigEndian::read_u16(&data[0 .. 2]),
+            role: BigEndian::read_u16(&data[0..2]),
             flags: data[2],
             reserved: [0; 5],
         }
@@ -275,7 +275,7 @@ impl Readable for EndRequestBody
     fn read(data: &[u8]) -> EndRequestBody
     {
         EndRequestBody {
-            app_status: BigEndian::read_u32(&data[0 .. 4]),
+            app_status: BigEndian::read_u32(&data[0..4]),
             protocol_status: data[4],
             reserved: [0; 3],
         }
@@ -324,7 +324,7 @@ impl Writable for UnknownTypeBody
 }
 
 
-/* ----------------- HTTP implementation ----------------- */
+// ----------------- HTTP implementation -----------------
 #[derive(Debug)]
 /// HTTP implementation of request
 pub struct Request
@@ -334,13 +334,12 @@ pub struct Request
     flags: u8,
     headers: HashMap<Vec<u8>, Vec<u8>>,
     body: Vec<u8>,
-    stream_tx: mpsc::Sender<Response>,
 }
 
 impl Request
 {
     /// Constructor
-    pub fn new(id: u16, tx: mpsc::Sender<Response>) -> Request
+    pub fn new(id: u16) -> Request
     {
         Request {
             id: id,
@@ -348,7 +347,6 @@ impl Request
             flags: 0,
             headers: HashMap::new(),
             body: Vec::new(),
-            stream_tx: tx,
         }
     }
 
@@ -385,45 +383,21 @@ impl Request
     }
 
     /// Get request id
-    ///
-    /// Note that id used by fcgi only
     pub fn id(&self) -> u16
     {
         self.id
     }
 
-    /// Get http header as bytes
-    pub fn header_raw<T: AsBytes>(&self, key: T) -> Option<&Vec<u8>>
+    /// List all headers
+    pub fn headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
-        self.headers.get(key.as_bytes())
+        &self.headers
     }
 
-    /// Get http header as String
-    pub fn header<T: AsBytes>(&self, key: T) -> Option<String>
-    {
-        match self.headers.get(key.as_bytes()) {
-            Some(value) => String::from_utf8(value.clone()).ok(),
-            None => None,
-        }
-    }
-
-    /// Get http body as bytes
-    pub fn body_raw(&self) -> &Vec<u8>
+    /// Get http body
+    pub fn body(&self) -> &Vec<u8>
     {
         &self.body
-    }
-
-    /// Get http body as utf-8 string
-    pub fn body(&self) -> Option<String>
-    {
-        String::from_utf8(self.body.clone()).ok()
-    }
-
-    /// Reply to request
-    pub fn reply(&self, mut response: Response)
-    {
-        response.set_id(self.id);
-        self.stream_tx.send(response).unwrap();
     }
 }
 
@@ -454,13 +428,13 @@ impl ParamFetcher
 
         while data_length > self.pos {
 
-            let key_length: usize = self.param_length();
-            let value_length: usize = self.param_length();
+            let key_length = self.param_length();
+            let value_length = self.param_length();
 
-            let key = Vec::from(&self.data[self.pos .. self.pos+key_length]);
+            let key = Vec::from(&self.data[self.pos..self.pos + key_length]);
             self.pos += key_length;
 
-            let value = Vec::from(&self.data[self.pos .. self.pos+value_length]);
+            let value = Vec::from(&self.data[self.pos..self.pos + value_length]);
             self.pos += value_length;
 
             param.insert(key, value);
@@ -477,7 +451,7 @@ impl ParamFetcher
         if (length >> 7) == 1 {
 
             self.data[self.pos] = self.data[self.pos] & 0x7F;
-            length = BigEndian::read_u32(&self.data[self.pos .. (self.pos+4)]) as usize;
+            length = BigEndian::read_u32(&self.data[self.pos..(self.pos + 4)]) as usize;
 
             self.pos += 4;
         } else {
@@ -505,13 +479,14 @@ pub struct Response
 impl Response
 {
     /// Constructor
-    pub fn new() -> Response
+    pub fn new(id: u16) -> Response
     {
         let mut header = HashMap::new();
-        header.insert(Vec::from(HTTP_STATUS.as_bytes()), Vec::from("200".as_bytes()));
+        header.insert(Vec::from(HTTP_STATUS.as_bytes()),
+                      Vec::from("200".as_bytes()));
 
         Response {
-            id: self::NULL_REQUEST_ID,
+            id: id,
             header: header,
             body: Vec::new(),
         }
@@ -554,10 +529,11 @@ impl Response
     fn end_request(&self) -> Vec<u8>
     {
         let data = EndRequestBody {
-            app_status: 0,
-            protocol_status: REQUEST_COMPLETE,
-            reserved: [0; 3],
-        }.write();
+                       app_status: 0,
+                       protocol_status: REQUEST_COMPLETE,
+                       reserved: [0; 3],
+                   }
+                   .write();
 
         let mut result: Vec<u8> = self.record_header(END_REQUEST, data.len() as u16);
         result.extend_from_slice(&data);
@@ -580,12 +556,6 @@ impl Response
         header.write()
     }
 
-    /// Set FCGI request id
-    fn set_id(&mut self, id: u16)
-    {
-        self.id = id;
-    }
-
     /// Set some data into response
     pub fn body<T: AsBytes>(&mut self, data: T) -> &mut Response
     {
@@ -606,7 +576,8 @@ impl Response
     /// Set custom HTTP status
     pub fn status(&mut self, code: u16) -> &mut Response
     {
-        self.header.insert(Vec::from(HTTP_STATUS.as_bytes()), Vec::from(code.to_string().as_bytes()));
+        self.header.insert(Vec::from(HTTP_STATUS.as_bytes()),
+                           Vec::from(code.to_string().as_bytes()));
 
         self
     }

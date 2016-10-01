@@ -1,25 +1,20 @@
 extern crate gfcgi;
 
-use std::thread;
+#[derive(Clone, Debug)]
+struct Router {}
 
-fn main() {
+impl gfcgi::Handler for Router
+{
+    fn process(&self, request: gfcgi::Request)
+    {
+        println!("{:?}", request.headers());
+    }
+}
 
-    let client = gfcgi::Client::bind("127.0.0.1:4128");
+fn main()
+{
+    let client = gfcgi::Client::new("127.0.0.1:4128", Router{});
 
     client.run(); // spawn tread
     client.run(); // spawn one more
-
-    for request in client {
-
-        thread::spawn(move || {
-            let mut response = gfcgi::model::Response::new();
-
-            // resend
-            response.body(request.body_raw());
-            // append header
-            response.header("Content-Type", "text/plain; charset=utf-8");
-
-            request.reply(response);
-        });
-    }
 }
