@@ -7,7 +7,9 @@ impl gfcgi::Handler for Router
 {
     fn process(&self, request: gfcgi::Request)
     {
-        println!("{:?}", request.headers());
+        for (key, val) in request.headers() {
+            println!("{}: {}", String::from_utf8_lossy(key), String::from_utf8_lossy(val));
+        }
     }
 }
 

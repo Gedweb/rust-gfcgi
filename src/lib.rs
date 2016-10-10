@@ -14,7 +14,8 @@ pub use model::{
 use std::collections::HashMap;
 
 // Stream
-use std::io::{Read};
+use std::io;
+use std::io::Read;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 // Thread
@@ -117,14 +118,18 @@ impl StreamReader
     }
 }
 
+impl io::Read for StreamReader
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
+    {
+        Ok(0)
+    }
+}
+
 pub trait Handler: Send + Clone + 'static
 {
     fn process(&self, model::Request);
 }
-
-
-
-
 
 
 
