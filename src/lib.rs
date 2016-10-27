@@ -11,6 +11,7 @@ pub use model::{
 };
 
 // Data struct
+use std::ops::Index;
 use std::collections::HashMap;
 
 // Stream
@@ -46,8 +47,9 @@ impl<T: Handler> Client<T>
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
-                        for fcgi_request in StreamReader::new(stream).read() {
-                            handler.process(fcgi_request);
+                        let mut reader = StreamReader::new(stream);
+                        for id in reader.wait() {
+                            handler.process(&reader);
                         }
                     }
                     Err(msg) => panic!("{}", msg),
@@ -59,11 +61,12 @@ impl<T: Handler> Client<T>
     }
 }
 
-#[derive(Debug)]
-struct StreamReader
+pub struct StreamReader
 {
-    _stream: TcpStream,
-    request_list: HashMap<u16, model::Request>
+    stream: TcpStream,
+    buf: [u8; model::MAX_LENGTH],
+    last_id: u16,
+    request_list: HashMap<u16, model::Request>,
 }
 
 impl StreamReader
@@ -71,7 +74,9 @@ impl StreamReader
     fn new(stream: TcpStream) -> Self
     {
         StreamReader {
-            _stream: stream,
+            stream: stream,
+            buf: [0; model::MAX_LENGTH],
+            last_id: 0,
             request_list: HashMap::new(),
         }
     }
@@ -79,7 +84,7 @@ impl StreamReader
     fn read_header(&mut self) -> model::Header
     {
         let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
-        self._stream.read(&mut buf).unwrap();
+        self.stream.read(&mut buf).unwrap();
         model::Header::read(&buf)
     }
 
@@ -95,7 +100,7 @@ impl StreamReader
             buf.set_len(len);
         }
 
-        match self._stream.read(&mut buf) {
+        match self.stream.read(&mut buf) {
             Ok(readed_len) if readed_len == len =>
                 r.add_record(&header, buf),
             Ok(readed_len) => panic!("{} bytes readed, expected {}", readed_len, len),
@@ -104,17 +109,24 @@ impl StreamReader
     }
 
 
-    fn read(&mut self) -> Option<model::Request>
+    fn wait(&mut self) -> Option<u16>
     {
         loop {
             let h = self.read_header();
             if h.type_ == model::STDIN {
-
-                return self.request_list.remove(&h.request_id)
+                self.last_id = h.request_id;
+                return Some(h.request_id.clone())
             }
 
             self.read_body(&h);
         }
+
+        None
+    }
+
+    pub fn get(&self, item: &[u8]) -> Option<&Vec<u8>>
+    {
+        self.request_list.get(&self.last_id).unwrap().headers().get(item)
     }
 }
 
@@ -128,7 +140,7 @@ impl io::Read for StreamReader
 
 pub trait Handler: Send + Clone + 'static
 {
-    fn process(&self, model::Request);
+    fn process(&self, &StreamReader);
 }
 
 
