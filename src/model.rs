@@ -351,7 +351,7 @@ impl Request
     }
 
     /// Set request options
-    fn options(&mut self, data: Vec<u8>)
+    pub fn options(&mut self, data: Vec<u8>)
     {
         let begin_request = BeginRequestBody::read(&data[..]);
         self.role = begin_request.role;
@@ -359,27 +359,9 @@ impl Request
     }
 
     /// Read HTTP-headers pairs
-    fn param(&mut self, data: Vec<u8>)
+    pub fn param(&mut self, data: Vec<u8>)
     {
         self.headers.extend(ParamFetcher::new(data).parse_param());
-    }
-
-    /// Request body data
-    fn stdin(&mut self, data: Vec<u8>)
-    {
-        self.body.extend_from_slice(&data);
-    }
-
-    /// Parse request record from stream
-    pub fn add_record(&mut self, header: &Header, body_data: Vec<u8>)
-    {
-        match header.type_ {
-            BEGIN_REQUEST => self.options(body_data),
-            PARAMS => self.param(body_data),
-            STDIN => self.stdin(body_data),
-            DATA => self.stdin(body_data),
-            _ => panic!("Undeclarated fastcgi header"),
-        };
     }
 
     /// Get request id
@@ -392,12 +374,6 @@ impl Request
     pub fn headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
         &self.headers
-    }
-
-    /// Get http body
-    pub fn body(&self) -> &Vec<u8>
-    {
-        &self.body
     }
 }
 

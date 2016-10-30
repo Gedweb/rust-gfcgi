@@ -11,7 +11,6 @@ pub use model::{
 };
 
 // Data struct
-use std::ops::Index;
 use std::collections::HashMap;
 
 // Stream
@@ -48,8 +47,8 @@ impl<T: Handler> Client<T>
                 match stream {
                     Ok(stream) => {
                         let mut reader = StreamReader::new(stream);
-                        for id in reader.wait() {
-                            handler.process(&reader);
+                        for id in reader.next() {
+                            handler.process(&mut reader);
                         }
                     }
                     Err(msg) => panic!("{}", msg),
@@ -64,7 +63,7 @@ impl<T: Handler> Client<T>
 pub struct StreamReader
 {
     stream: TcpStream,
-    buf: [u8; model::MAX_LENGTH],
+    buf: Vec<u8>,
     last_id: u16,
     request_list: HashMap<u16, model::Request>,
 }
@@ -75,7 +74,7 @@ impl StreamReader
     {
         StreamReader {
             stream: stream,
-            buf: [0; model::MAX_LENGTH],
+            buf: Vec::new(),
             last_id: 0,
             request_list: HashMap::new(),
         }
@@ -88,12 +87,8 @@ impl StreamReader
         model::Header::read(&buf)
     }
 
-    fn read_body(&mut self, header: &model::Header)
+    fn read_body(&mut self, header: &model::Header) -> Vec<u8>
     {
-        self.request_list.entry(header.request_id).or_insert(model::Request::new(header.request_id));
-
-        let mut r = self.request_list.get_mut(&header.request_id).unwrap();
-
         let len: usize = header.content_length as usize;
         let mut buf: Vec<u8> = Vec::with_capacity(len);
         unsafe {
@@ -101,32 +96,38 @@ impl StreamReader
         }
 
         match self.stream.read(&mut buf) {
-            Ok(readed_len) if readed_len == len =>
-                r.add_record(&header, buf),
+            Ok(readed_len) if readed_len == len => buf,
             Ok(readed_len) => panic!("{} bytes readed, expected {}", readed_len, len),
             Err(e)  => panic!("{}", e),
         }
     }
 
-
-    fn wait(&mut self) -> Option<u16>
-    {
-        loop {
-            let h = self.read_header();
-            if h.type_ == model::STDIN {
-                self.last_id = h.request_id;
-                return Some(h.request_id.clone())
-            }
-
-            self.read_body(&h);
-        }
-
-        None
-    }
-
     pub fn get(&self, item: &[u8]) -> Option<&Vec<u8>>
     {
         self.request_list.get(&self.last_id).unwrap().headers().get(item)
+    }
+
+    fn next(&mut self) -> Option<u16>
+    {
+        while self.last_id == 0 || !self.request_list.is_empty() {
+            let h = self.read_header();
+            let body = self.read_body(&h);
+            let mut r = self.request_list.entry(h.request_id)
+                .or_insert(model::Request::new(h.request_id));
+
+            match h.type_ {
+                model::BEGIN_REQUEST => r.options(body),
+                model::PARAMS => r.param(body),
+                model::STDIN | model::DATA => {
+                    self.buf.extend(body);
+                    self.last_id = h.request_id;
+                    return Some(h.request_id.clone());
+                }
+                _ => panic!("Undeclarated fastcgi header"),
+            }
+        }
+
+        None
     }
 }
 
@@ -134,13 +135,30 @@ impl io::Read for StreamReader
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        Ok(0)
+        while buf.len() < self.buf.len() {
+            let h = self.read_header();
+            let data = self.read_body(&h);
+            self.buf.extend(data);
+        }
+
+        // TODO: how avoid it?
+        let end = if buf.len() > self.buf.len() {
+            self.buf.len()
+        } else {
+            buf.len()
+        };
+
+        for (k, v) in self.buf.drain(..end).enumerate() {
+            buf[k] = v;
+        }
+
+        Ok(end)
     }
 }
 
 pub trait Handler: Send + Clone + 'static
 {
-    fn process(&self, &StreamReader);
+    fn process(&self, &mut StreamReader);
 }
 
 
