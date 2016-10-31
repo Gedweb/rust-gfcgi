@@ -48,7 +48,11 @@ impl<T: Handler> Client<T>
                     Ok(stream) => {
                         let mut reader = StreamReader::new(stream);
                         for id in reader.next() {
-                            handler.process(&mut reader);
+                            let mut response = handler.process(&mut reader);
+
+                            if (!reader.request.get(&id).unwrap().has_readed()) {
+
+                            }
                         }
                     }
                     Err(msg) => panic!("{}", msg),
@@ -65,7 +69,7 @@ pub struct StreamReader
     stream: TcpStream,
     buf: Vec<u8>,
     last_id: u16,
-    request_list: HashMap<u16, model::Request>,
+    request: HashMap<u16, model::Request>,
 }
 
 impl StreamReader
@@ -76,7 +80,7 @@ impl StreamReader
             stream: stream,
             buf: Vec::new(),
             last_id: 0,
-            request_list: HashMap::new(),
+            request: HashMap::new(),
         }
     }
 
@@ -104,16 +108,16 @@ impl StreamReader
 
     pub fn get(&self, item: &[u8]) -> Option<&Vec<u8>>
     {
-        self.request_list.get(&self.last_id).unwrap().headers().get(item)
+        self.request.get(&self.last_id).unwrap().headers().get(item)
     }
 
     fn next(&mut self) -> Option<u16>
     {
-        while self.last_id == 0 || !self.request_list.is_empty() {
+        while self.last_id == 0 || !self.request.is_empty() {
             let h = self.read_header();
             let body = self.read_body(&h);
-            let mut r = self.request_list.entry(h.request_id)
-                .or_insert(model::Request::new(h.request_id));
+            let mut r = self.request.entry(h.request_id)
+                .or_insert(model::Request::new());
 
             match h.type_ {
                 model::BEGIN_REQUEST => r.options(body),
@@ -135,10 +139,10 @@ impl io::Read for StreamReader
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        while buf.len() < self.buf.len() && !self.request_list.get_mut(&self.last_id).unwrap().has_readed() {
+        while buf.len() < self.buf.len() && !self.request.get(&self.last_id).unwrap().has_readed() {
             let h = self.read_header();
             if h.content_length == 0 {
-                self.request_list.get_mut(&self.last_id).unwrap().mark_readed();
+                self.request.get_mut(&self.last_id).unwrap().mark_readed();
                 break;
             }
 
@@ -146,13 +150,13 @@ impl io::Read for StreamReader
             self.buf.extend(data);
         }
 
-        // TODO: how avoid it?
         let end = if buf.len() > self.buf.len() {
             self.buf.len()
         } else {
             buf.len()
         };
 
+        // TODO: how avoid it?
         for (k, v) in self.buf.drain(..end).enumerate() {
             buf[k] = v;
         }
@@ -163,7 +167,7 @@ impl io::Read for StreamReader
 
 pub trait Handler: Send + Clone + 'static
 {
-    fn process(&self, &mut StreamReader);
+    fn process(&self, &mut StreamReader) -> Option<model::Response>;
 }
 
 

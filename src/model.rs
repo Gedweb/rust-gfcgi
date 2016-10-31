@@ -330,7 +330,6 @@ impl Writable for UnknownTypeBody
 /// HTTP implementation of request
 pub struct Request
 {
-    id: u16,
     role: u16,
     flags: u8,
     headers: HashMap<Vec<u8>, Vec<u8>>,
@@ -340,10 +339,9 @@ pub struct Request
 impl Request
 {
     /// Constructor
-    pub fn new(id: u16) -> Request
+    pub fn new() -> Request
     {
         Request {
-            id: id,
             role: 0,
             flags: 0,
             headers: HashMap::new(),
@@ -363,12 +361,6 @@ impl Request
     pub fn param(&mut self, data: Vec<u8>)
     {
         self.headers.extend(ParamFetcher::new(data).parse_param());
-    }
-
-    /// Get request id
-    pub fn id(&self) -> u16
-    {
-        self.id
     }
 
     /// List all headers
@@ -523,7 +515,7 @@ impl Response
                    .write();
 
         let mut result: Vec<u8> = self.record_header(END_REQUEST, data.len() as u16);
-        result.extend_from_slice(&data);
+        result.extend(data);
 
         result
     }
