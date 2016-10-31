@@ -7,6 +7,7 @@ use std::collections::HashMap;
 pub const LISTENSOCK_FILENO: u8 = 0;
 
 /// FCGI record header
+#[derive(Debug)]
 pub struct Header
 {
     pub version: u8,
@@ -333,7 +334,7 @@ pub struct Request
     role: u16,
     flags: u8,
     headers: HashMap<Vec<u8>, Vec<u8>>,
-    body: Vec<u8>,
+    readed: bool,
 }
 
 impl Request
@@ -346,7 +347,7 @@ impl Request
             role: 0,
             flags: 0,
             headers: HashMap::new(),
-            body: Vec::new(),
+            readed: false,
         }
     }
 
@@ -374,6 +375,16 @@ impl Request
     pub fn headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
         &self.headers
+    }
+
+    pub fn mark_readed(&mut self)
+    {
+        self.readed = true;
+    }
+
+    pub fn has_readed(&self) -> bool
+    {
+        self.readed
     }
 }
 

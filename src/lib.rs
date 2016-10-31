@@ -135,8 +135,13 @@ impl io::Read for StreamReader
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        while buf.len() < self.buf.len() {
+        while buf.len() < self.buf.len() && !self.request_list.get_mut(&self.last_id).unwrap().has_readed() {
             let h = self.read_header();
+            if h.content_length == 0 {
+                self.request_list.get_mut(&self.last_id).unwrap().mark_readed();
+                break;
+            }
+
             let data = self.read_body(&h);
             self.buf.extend(data);
         }

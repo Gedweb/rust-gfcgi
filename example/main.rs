@@ -20,5 +20,5 @@ fn main()
     let client = gfcgi::Client::new("127.0.0.1:4128", Router{});
 
     client.run(); // spawn tread
-    client.run(); // spawn one more
+//    client.run(); // spawn one more
 }
