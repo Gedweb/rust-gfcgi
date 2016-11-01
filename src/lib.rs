@@ -48,14 +48,32 @@ impl<T: Handler> Client<T>
                     Ok(stream) => {
                         let mut reader = StreamReader::new(stream);
                         for id in reader.next() {
+
+                            // call handler
                             let mut response = handler.process(&mut reader);
 
-                            if (!reader.request.get(&id).unwrap().has_readed()) {
+                            // drop not readed data
+                            if !reader.request.get(&id).unwrap().has_readed() {
+                                let mut drop = [0u8; 32];
+                                while match reader.read(&mut drop) {
+                                    Ok(32) => true,
+                                    Ok(_) => false,
+                                    Err(e) => panic!("{}", e),
+                                } {
+                                    drop = [0u8; 32];
+                                }
+                            }
 
+                            // let response
+                            match response {
+                                Some(rs) => (),
+                                None => {
+                                    model::Response::new(id);
+                                },
                             }
                         }
                     }
-                    Err(msg) => panic!("{}", msg),
+                    Err(e) => panic!("{}", e),
                 }
             }
         });
