@@ -5,11 +5,6 @@
 mod model;
 use model::{Readable};
 
-pub use model::{
-    Request,
-    Response,
-};
-
 // Data struct
 use std::collections::HashMap;
 
@@ -188,7 +183,20 @@ pub trait Handler: Send + Clone + 'static
     fn process(&self, &mut StreamReader) -> Option<model::Response>;
 }
 
+use std::ops::Index;
 
+pub struct Request<'a>
+{
+    header: &'a HashMap<Vec<u8>, Vec<u8>>,
+}
+
+impl<'a> Request<'a>
+{
+    fn get(&self, key: &[u8]) -> Option<&Vec<u8>>
+    {
+        self.header.get(key)
+    }
+}
 
 
 
