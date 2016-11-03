@@ -1,14 +1,18 @@
 #![allow(dead_code)]
 //! This crate provieds FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.
 
-// FastCGI entity
-mod model;
-use model::{Readable};
+// object
+mod fastcgi;
+mod http;
+
+pub use http::{Request, Response};
+
+use fastcgi::{Readable};
 
 // Data struct
 use std::collections::HashMap;
 
-// Stream
+// io
 use std::io;
 use std::io::Read;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
@@ -45,7 +49,7 @@ impl<T: Handler> Client<T>
                         for id in reader.next() {
 
                             // call handler
-                            let mut response = handler.process(&mut reader);
+                            let response = handler.process(&mut reader);
 
                             // drop not readed data
                             if !reader.request.get(&id).unwrap().has_readed() {
@@ -61,9 +65,9 @@ impl<T: Handler> Client<T>
 
                             // let response
                             match response {
-                                Some(rs) => (),
+                                Some(_) => (),
                                 None => {
-                                    model::Response::new(id);
+                                    http::Response::new(id);
                                 },
                             }
                         }
@@ -82,7 +86,7 @@ pub struct StreamReader
     stream: TcpStream,
     buf: Vec<u8>,
     last_id: u16,
-    request: HashMap<u16, model::Request>,
+    request: HashMap<u16, http::Request>,
 }
 
 impl StreamReader
@@ -97,14 +101,14 @@ impl StreamReader
         }
     }
 
-    fn read_header(&mut self) -> model::Header
+    fn read_header(&mut self) -> fastcgi::Header
     {
-        let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
+        let mut buf: [u8; fastcgi::HEADER_LEN] = [0; fastcgi::HEADER_LEN];
         self.stream.read(&mut buf).unwrap();
-        model::Header::read(&buf)
+        fastcgi::Header::read(&buf)
     }
 
-    fn read_body(&mut self, header: &model::Header) -> Vec<u8>
+    fn read_body(&mut self, header: &fastcgi::Header) -> Vec<u8>
     {
         let len: usize = header.content_length as usize;
         let mut buf: Vec<u8> = Vec::with_capacity(len);
@@ -119,23 +123,18 @@ impl StreamReader
         }
     }
 
-    pub fn get(&self, item: &[u8]) -> Option<&Vec<u8>>
-    {
-        self.request.get(&self.last_id).unwrap().headers().get(item)
-    }
-
     fn next(&mut self) -> Option<u16>
     {
         while self.last_id == 0 || !self.request.is_empty() {
             let h = self.read_header();
             let body = self.read_body(&h);
             let mut r = self.request.entry(h.request_id)
-                .or_insert(model::Request::new());
+                .or_insert(http::Request::new());
 
             match h.type_ {
-                model::BEGIN_REQUEST => r.options(body),
-                model::PARAMS => r.param(body),
-                model::STDIN | model::DATA => {
+                fastcgi::BEGIN_REQUEST => r.add_options(body),
+                fastcgi::PARAMS => r.add_param(body),
+                fastcgi::STDIN | fastcgi::DATA => {
                     self.buf.extend(body);
                     self.last_id = h.request_id;
                     return Some(h.request_id.clone());
@@ -180,27 +179,8 @@ impl io::Read for StreamReader
 
 pub trait Handler: Send + Clone + 'static
 {
-    fn process(&self, &mut StreamReader) -> Option<model::Response>;
+    fn process(&self, &mut StreamReader) -> Option<Response>;
 }
-
-use std::ops::Index;
-
-pub struct Request<'a>
-{
-    header: &'a HashMap<Vec<u8>, Vec<u8>>,
-}
-
-impl<'a> Request<'a>
-{
-    fn get(&self, key: &[u8]) -> Option<&Vec<u8>>
-    {
-        self.header.get(key)
-    }
-}
-
-
-
-
 
 
 
