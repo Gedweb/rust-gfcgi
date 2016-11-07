@@ -12,6 +12,7 @@ use self::byteorder::{ByteOrder, BigEndian};
 #[derive(Debug)]
 pub struct Request
 {
+    id: u16,
     role: u16,
     flags: u8,
     headers: HashMap<Vec<u8>, Vec<u8>>,
@@ -20,10 +21,12 @@ pub struct Request
 
 impl Request
 {
+
     /// Constructor
-    pub fn new() -> Request
+    pub fn new(id: u16) -> Request
     {
         Request {
+            id: id,
             role: 0,
             flags: 0,
             headers: HashMap::new(),
@@ -45,6 +48,11 @@ impl Request
         self.headers.extend(ParamFetcher::new(data).parse_param());
     }
 
+    pub fn get_id(&self) -> u16
+    {
+        self.id
+    }
+
     /// List all headers
     pub fn get_headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
@@ -52,16 +60,21 @@ impl Request
     }
 
     /// List all headers
-    pub fn get_header_line(&self, key: &[u8]) -> Option<&Vec<u8>>
+    pub fn get_header_line(&self, key: &[u8]) -> Option<Vec<u8>>
     {
-        self.headers.get(key)
+        self.headers.get(key).cloned()
     }
 
-    pub fn get_header(&self, key: &[u8]) -> Option<&Vec<u8>>
+    pub fn get_header(&self, key: &[u8]) -> Vec<Vec<u8>>
     {
         match self.get_header_line(key) {
-            Some(a) => Some(a.split(|byte| byte == b',').collect()),
-            _ => None,
+            Some(v) => {
+                v.split(|b| *b == b',')
+                    .filter(|h| !h.is_empty())
+                    .map(|h| h.to_vec())
+                    .collect()
+            },
+            None => vec![],
         }
     }
 

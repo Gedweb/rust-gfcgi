@@ -1,17 +1,20 @@
 extern crate gfcgi;
 
-use std::io::Read;
+//use std::io::Read;
 #[derive(Clone, Debug)]
 struct Router {}
 
 impl gfcgi::Handler for Router
 {
-    fn process(&self, reader: &mut gfcgi::StreamReader) -> Option<gfcgi::Response>
+    fn process(&self, request: &mut gfcgi::Request) -> Option<gfcgi::Response>
     {
-        println!("{:?}", String::from_utf8_lossy(reader.get("HTTP_HOST".as_bytes()).unwrap()));
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf).unwrap();
-        println!("{:?}", String::from_utf8(buf));
+        let h = request.get_header(b"HTTP_X_TEST");
+            println!("{:?}", h);
+
+//        println!("{:?}", String::from_utf8_lossy(reader.get("HTTP_HOST".as_bytes()).unwrap()));
+//        let mut buf = Vec::new();
+//        reader.read_to_end(&mut buf).unwrap();
+//        println!("{:?}", String::from_utf8(buf));
 
         None
     }

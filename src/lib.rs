@@ -46,28 +46,28 @@ impl<T: Handler> Client<T>
                 match stream {
                     Ok(stream) => {
                         let mut reader = StreamReader::new(stream);
-                        for id in reader.next() {
+                        for mut request in reader.next() {
 
                             // call handler
-                            let response = handler.process(&mut reader);
+                            let response = handler.process(&mut request);
 
                             // drop not readed data
-                            if !reader.request.get(&id).unwrap().has_readed() {
-                                let mut drop = [0u8; 32];
-                                while match reader.read(&mut drop) {
-                                    Ok(32) => true,
-                                    Ok(_) => false,
-                                    Err(e) => panic!("{}", e),
-                                } {
-                                    drop = [0u8; 32];
-                                }
-                            }
+//                            if !reader.request.get(&id).unwrap().has_readed() {
+//                                let mut drop = [0u8; 32];
+//                                while match reader.read(&mut drop) {
+//                                    Ok(32) => true,
+//                                    Ok(_) => false,
+//                                    Err(e) => panic!("{}", e),
+//                                } {
+//                                    drop = [0u8; 32];
+//                                }
+//                            }
 
                             // let response
                             match response {
                                 Some(_) => (),
                                 None => {
-                                    http::Response::new(id);
+                                    http::Response::new(request.get_id());
                                 },
                             }
                         }
@@ -123,21 +123,20 @@ impl StreamReader
         }
     }
 
-    fn next(&mut self) -> Option<u16>
+    fn next(&mut self) -> Option<Request>
     {
         while self.last_id == 0 || !self.request.is_empty() {
             let h = self.read_header();
             let body = self.read_body(&h);
-            let mut r = self.request.entry(h.request_id)
-                .or_insert(http::Request::new());
+            self.request.entry(h.request_id).or_insert(http::Request::new(h.request_id));
 
             match h.type_ {
-                fastcgi::BEGIN_REQUEST => r.add_options(body),
-                fastcgi::PARAMS => r.add_param(body),
+                fastcgi::BEGIN_REQUEST => self.request.get_mut(&h.request_id).unwrap().add_options(body),
+                fastcgi::PARAMS => self.request.get_mut(&h.request_id).unwrap().add_param(body),
                 fastcgi::STDIN | fastcgi::DATA => {
                     self.buf.extend(body);
                     self.last_id = h.request_id;
-                    return Some(h.request_id.clone());
+                    return self.request.remove(&h.request_id);
                 }
                 _ => panic!("Undeclarated fastcgi header"),
             }
@@ -179,7 +178,7 @@ impl io::Read for StreamReader
 
 pub trait Handler: Send + Clone + 'static
 {
-    fn process(&self, &mut StreamReader) -> Option<Response>;
+    fn process(&self, &mut Request) -> Option<Response>;
 }
 
 
