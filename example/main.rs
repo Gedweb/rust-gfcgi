@@ -8,7 +8,7 @@ impl gfcgi::Handler for Router
 {
     fn process(&self, request: &mut gfcgi::Request) -> Option<gfcgi::Response>
     {
-        let h = request.get_header(b"HTTP_X_TEST");
+        let h = request.header_line_utf8(b"HTTP_X_TEST");
             println!("{:?}", h);
 
 //        println!("{:?}", String::from_utf8_lossy(reader.get("HTTP_HOST".as_bytes()).unwrap()));

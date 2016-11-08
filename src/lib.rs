@@ -117,8 +117,8 @@ impl StreamReader
         }
 
         match self.stream.read(&mut buf) {
-            Ok(readed_len) if readed_len == len => buf,
-            Ok(readed_len) => panic!("{} bytes readed, expected {}", readed_len, len),
+            Ok(_len) if _len == len => buf,
+            Ok(_len) => panic!("{} bytes readed, expected {}", _len, len),
             Err(e)  => panic!("{}", e),
         }
     }

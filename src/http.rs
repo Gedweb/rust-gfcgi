@@ -48,41 +48,44 @@ impl Request
         self.headers.extend(ParamFetcher::new(data).parse_param());
     }
 
+    /// FastCGI requestId
     pub fn get_id(&self) -> u16
     {
         self.id
     }
 
-    /// List all headers
-    pub fn get_headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
+    /// List all headers by reference
+    pub fn headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
         &self.headers
     }
 
-    /// List all headers
-    pub fn get_header_line(&self, key: &[u8]) -> Option<Vec<u8>>
+    /// Header by key in utf8
+    /// Key are case-sensitive
+    pub fn header_line_utf8(&self, key: &[u8]) -> Option<String>
     {
-        self.headers.get(key).cloned()
+        self.headers.get(key).map(|v| String::from_utf8_lossy(v).into_owned())
     }
 
-    pub fn get_header(&self, key: &[u8]) -> Vec<Vec<u8>>
+    /// A vector with multiple header in utf8
+    /// Key are case-sensitive
+    pub fn header_utf8(&self, key: &[u8]) -> Option<Vec<String>>
     {
-        match self.get_header_line(key) {
-            Some(v) => {
-                v.split(|b| *b == b',')
-                    .filter(|h| !h.is_empty())
-                    .map(|h| h.to_vec())
-                    .collect()
-            },
-            None => vec![],
-        }
+        self.headers.get(key).map(|v| {
+            String::from_utf8_lossy(v).as_ref()
+                .split(',')
+                .map(|h| h.trim().to_string())
+                .collect()
+        })
     }
 
+    /// Mark request as readed
     pub fn mark_readed(&mut self)
     {
         self.readed = true;
     }
 
+    /// Check request was readed
     pub fn has_readed(&self) -> bool
     {
         self.readed
