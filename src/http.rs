@@ -54,26 +54,43 @@ impl Request
         self.id
     }
 
-    /// List all headers by reference
+    /// List all headers in bytes
     pub fn headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
         &self.headers
     }
 
+    /// List all headers in utf8
+    pub fn headers_utf8(&self) -> HashMap<String, String>
+    {
+        self.headers.iter()
+            .map(|(k, v)| (
+                String::from_utf8_lossy(k).into_owned(),
+                String::from_utf8_lossy(v).into_owned(),
+            ))
+            .collect::<HashMap<_, _>>()
+    }
+
+    /// Header by key in bytes
+    /// Key are case-sensitive
+    pub fn header(&self, key: &[u8]) -> Option<&Vec<u8>>
+    {
+        self.headers.get(key)
+    }
+
     /// Header by key in utf8
     /// Key are case-sensitive
-    pub fn header_line_utf8(&self, key: &[u8]) -> Option<String>
+    pub fn header_utf8(&self, key: &[u8]) -> Option<String>
     {
         self.headers.get(key).map(|v| String::from_utf8_lossy(v).into_owned())
     }
 
     /// A vector with multiple header in utf8
     /// Key are case-sensitive
-    pub fn header_utf8(&self, key: &[u8]) -> Option<Vec<String>>
+    pub fn header_multiple_utf8(&self, key: &[u8]) -> Option<Vec<String>>
     {
-        self.headers.get(key).map(|v| {
-            String::from_utf8_lossy(v).as_ref()
-                .split(',')
+        self.header_utf8(key).map(|v| {
+                v.split(',')
                 .map(|h| h.trim().to_string())
                 .collect()
         })
