@@ -7,13 +7,11 @@ mod http;
 
 pub use http::{Request, Response};
 
-use fastcgi::{Readable};
-
 // Data struct
 use std::collections::HashMap;
+use std::iter::Iterator;
 
 // io
-use std::io::Read;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 // Thread
@@ -51,8 +49,8 @@ impl Client
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
-                        let mut reader = StreamReader::new();
-                        for mut request in reader.next(&stream) {
+                        let reader = StreamReader::new(&stream);
+                        for mut request in reader {
 
                             // call handler
                             let response = handler.process(&mut request);
@@ -87,64 +85,36 @@ impl Client
     }
 }
 
-pub struct StreamReader<'r>
+pub struct StreamReader<'s>
 {
     status: ParseStatus,
-    request: HashMap<u16, http::Request<'r>>,
+    request: HashMap<u16, http::Request<'s>>,
+    stream: &'s TcpStream,
 }
 
-impl<'r> StreamReader<'r>
+impl<'s> StreamReader<'s>
 {
-    fn new() -> Self
+    fn new(stream: &'s TcpStream) -> Self
     {
         StreamReader {
             status: ParseStatus::Begin,
             request: HashMap::new(),
+            stream: stream,
         }
     }
+}
 
-    fn next(&mut self, mut stream: &'r TcpStream) -> Option<http::Request>
+impl<'s> Iterator for StreamReader<'s>
+{
+    type Item = http::Request<'s>;
+
+    fn next(&mut self) -> Option<Self::Item>
     {
-        while !self.request.is_empty() || self.status == ParseStatus::Begin {
+        let mut r = http::Request::new(self.stream);
 
-            // read fcgi-header
-            let mut buf: [u8; fastcgi::HEADER_LEN] = [0; fastcgi::HEADER_LEN];
-            stream.read(&mut buf).expect("Read fcgi header");
-            let h = fastcgi::Header::read(&buf);
-
-            // read fcgi-record
-            let len: usize = h.content_length as usize;
-            let mut body: Vec<u8> = Vec::with_capacity(len);
-            unsafe {
-                body.set_len(len);
-            }
-            match stream.read(&mut body) {
-                Ok(_len) if _len == len => (),
-                Ok(_len) => panic!("{} bytes readed, expected {}", _len, len),
-                Err(e)  => panic!("{}", e),
-            }
-
-            // parse fcgi-record
-            self.request.entry(h.request_id).or_insert(http::Request::new(h.request_id, stream));
-
-            match h.type_ {
-                fastcgi::BEGIN_REQUEST => self
-                    .request.get_mut(&h.request_id)
-                    .expect("HTTP Request begin")
-                    .add_options(body),
-                fastcgi::PARAMS => self
-                    .request.get_mut(&h.request_id)
-                    .expect("HTTP Request param")
-                    .add_param(body),
-                fastcgi::STDIN | fastcgi::DATA => {
-//                    self.buf.extend(body);
-                    return self.request.remove(&h.request_id);
-                }
-                _ => panic!("Undeclarated fastcgi header"),
-            }
-        }
-
-        self.status = ParseStatus::Progress;
+        let h = r.read_header();
+        let entry = self.request.entry(h.request_id).or_insert(r);
+        entry.parse_record(h);
 
         None
     }
@@ -155,33 +125,6 @@ pub trait Handler: Send + Clone + 'static
     fn new() -> Self;
 
     fn process(&self, &mut Request) -> Option<Response>;
-//
-//    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
-//    {
-//        while buf.len() < self.buf.len() && !self.request.get(&self.last_id).expect("HTTP Request body").has_readed() {
-//            let h = self.read_header();
-//            if h.content_length == 0 {
-//                self.request.get_mut(&self.last_id).expect("HTTP Request readed").mark_readed();
-//                break;
-//            }
-//
-//            let data = self.read_body(&h);
-//            self.buf.extend(data);
-//        }
-//
-//        let end = if buf.len() > self.buf.len() {
-//            self.buf.len()
-//        } else {
-//            buf.len()
-//        };
-//
-//        // TODO: how avoid it?
-//        for (k, v) in self.buf.drain(..end).enumerate() {
-//            buf[k] = v;
-//        }
-//
-//        Ok(end)
-//    }
 }
 
 
