@@ -1,36 +1,38 @@
 //! HTTP implementation
 use fastcgi;
-
 use fastcgi::{Readable, Writable};
 
+use std::io;
 use std::collections::HashMap;
+use std::net::TcpStream;
 
 extern crate byteorder;
-
 use self::byteorder::{ByteOrder, BigEndian};
 
 #[derive(Debug)]
-pub struct Request
+pub struct Request<'s>
 {
     id: u16,
     role: u16,
     flags: u8,
     headers: HashMap<Vec<u8>, Vec<u8>>,
-    readed: bool,
+    buf: Vec<u8>,
+    stream: &'s TcpStream,
 }
 
-impl Request
+impl<'s> Request<'s>
 {
 
     /// Constructor
-    pub fn new(id: u16) -> Request
+    pub fn new(id: u16, stream: &TcpStream) -> Request
     {
         Request {
             id: id,
             role: 0,
             flags: 0,
             headers: HashMap::new(),
-            readed: false,
+            buf: Vec::new(),
+            stream: stream,
         }
     }
 
@@ -95,17 +97,13 @@ impl Request
                 .collect()
         })
     }
+}
 
-    /// Mark request as readed
-    pub fn mark_readed(&mut self)
+impl<'s> io::Read for Request<'s>
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        self.readed = true;
-    }
-
-    /// Check request was readed
-    pub fn has_readed(&self) -> bool
-    {
-        self.readed
+        Ok(0)
     }
 }
 
@@ -269,18 +267,18 @@ impl Response
     }
 
     /// Set some data into response
-    pub fn body<T: AsBytes>(&mut self, data: T) -> &mut Response
+    pub fn body(&mut self, data: &[u8]) -> &mut Response
     {
         self.body.clear();
-        self.body.extend_from_slice(data.as_bytes());
+        self.body.extend_from_slice(data);
 
         self
     }
 
     /// Add some HTTP header
-    pub fn header<T: AsBytes>(&mut self, key: T, value: T) -> &mut Response
+    pub fn header(&mut self, key: &[u8], value: &[u8]) -> &mut Response
     {
-        self.header.insert(Vec::from(key.as_bytes()), Vec::from(value.as_bytes()));
+        self.header.insert(Vec::from(key), Vec::from(value));
 
         self
     }
@@ -289,40 +287,9 @@ impl Response
     pub fn status(&mut self, code: u16) -> &mut Response
     {
         self.header.insert(Vec::from(HTTP_STATUS.as_bytes()),
-                           Vec::from(code.to_string().as_bytes()));
+                           Vec::from(code.to_string().as_bytes())
+        );
 
         self
     }
 }
-
-/// Provide accepting reference to some data types
-pub trait AsBytes
-{
-    /// Must return byte slice
-    fn as_bytes(&self) -> &[u8];
-}
-
-impl<'a> AsBytes for &'a String
-{
-    fn as_bytes(&self) -> &[u8]
-    {
-        String::as_bytes(self)
-    }
-}
-
-impl<'a> AsBytes for &'a Vec<u8>
-{
-    fn as_bytes(&self) -> &[u8]
-    {
-        &self
-    }
-}
-
-impl<'a> AsBytes for &'a str
-{
-    fn as_bytes(&self) -> &[u8]
-    {
-        str::as_bytes(self)
-    }
-}
-
