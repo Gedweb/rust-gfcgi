@@ -110,11 +110,24 @@ impl<'s> Iterator for StreamReader<'s>
 
     fn next(&mut self) -> Option<Self::Item>
     {
-        let mut r = http::Request::new(self.stream);
+        while !self.request.is_empty() || self.status == ParseStatus::Begin {
+            let h = http::Request::read_header(self.stream);
+            let body = http::Request::read_body(self.stream, h.content_length as usize);
 
-        let h = r.read_header();
-        let entry = self.request.entry(h.request_id).or_insert(r);
-        entry.parse_record(h);
+            self.request.entry(h.request_id)
+                .or_insert(http::Request::new(self.stream));
+
+            if h.content_length == 0 && (h.type_ == fastcgi::STDIN || h.type_ == fastcgi::DATA) {
+                return self.request.remove(&h.request_id);
+                self.status = ParseStatus::Progress;
+            }
+
+            self.request
+                .get_mut(&h.request_id)
+                .expect("HTTP request")
+                .parse_record(h, body);
+        }
+
 
         None
     }

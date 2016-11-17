@@ -99,46 +99,41 @@ impl<'s> Request<'s>
         })
     }
 
-    pub fn read_header(&mut self) -> fastcgi::Header
+    pub fn read_header(mut stream: &TcpStream) -> fastcgi::Header
     {
         let mut buf: [u8; fastcgi::HEADER_LEN] = [0; fastcgi::HEADER_LEN];
-        self.stream.read(&mut buf).expect("Read fcgi header");
+        stream.read(&mut buf).expect("Read fcgi header");
         fastcgi::Header::read(&buf)
     }
 
-    pub fn read_body(&mut self, length: usize) -> Vec<u8>
+    pub fn read_body(mut stream: &TcpStream, length: usize) -> Vec<u8>
     {
         let mut body: Vec<u8> = Vec::with_capacity(length);
         unsafe {
             body.set_len(length);
         }
 
-        match self.stream.read(&mut body) {
+        match stream.read(&mut body) {
             Ok(_len) if _len == length => body,
             Ok(_len) => panic!("{} bytes readed, expected {}", _len, length),
             Err(e)  => panic!("{}", e),
         }
     }
 
-    pub fn parse_record(&mut self, h: fastcgi::Header)
+    pub fn parse_record(&mut self, h: fastcgi::Header, body: Vec<u8>)
     {
-        while h.request_id == self.id {
-            let body = self.read_body(h.content_length as usize);
-
-            // parse fcgi-record
-            match h.type_ {
-                fastcgi::BEGIN_REQUEST => {
-                    self.id = h.request_id;
-                    self.add_options(body)
-                },
-                fastcgi::PARAMS => {
-                    self.add_param(body)
-                },
-                fastcgi::STDIN | fastcgi::DATA => {
-                    self.buf.extend_from_slice(&body);
-                }
-                _ => panic!("Undeclarated fastcgi header"),
+        match h.type_ {
+            fastcgi::BEGIN_REQUEST => {
+                self.id = h.request_id;
+                self.add_options(body)
+            },
+            fastcgi::PARAMS => {
+                self.add_param(body)
+            },
+            fastcgi::STDIN | fastcgi::DATA => {
+                self.buf.extend_from_slice(&body);
             }
+            _ => panic!("Undeclarated fastcgi header"),
         }
     }
 }
@@ -147,30 +142,28 @@ impl<'s> io::Read for Request<'s>
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        Ok(0)
-//        while buf.len() < self.buf.len() {
-//            let h = self.read_header();
-//            if h.content_length == 0 {
-//                self.request.get_mut(&h.request_id).expect("HTTP Request readed");
-//                break;
-//            }
-//
-//            let data = self.read_body(&h);
-//            self.buf.extend(data);
-//        }
-//
-//        let end = if buf.len() > self.buf.len() {
-//            self.buf.len()
-//        } else {
-//            buf.len()
-//        };
-//
-//        // TODO: how avoid it?
-//        for (k, v) in self.buf.drain(..end).enumerate() {
-//            buf[k] = v;
-//        }
-//
-//        Ok(end)
+        while buf.len() < self.buf.len() {
+            let h = Self::read_header(self.stream);
+            if h.content_length == 0 {
+                break;
+            }
+
+            let data = Self::read_body(self.stream, h.content_length as usize);
+            self.buf.extend(data);
+        }
+
+        let end = if buf.len() > self.buf.len() {
+            self.buf.len()
+        } else {
+            buf.len()
+        };
+
+        // TODO: how avoid it?
+        for (k, v) in self.buf.drain(..end).enumerate() {
+            buf[k] = v;
+        }
+
+        Ok(end)
     }
 }
 
