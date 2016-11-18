@@ -17,14 +17,6 @@ use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 // Thread
 use std::thread;
 
-
-#[derive(PartialEq)]
-enum ParseStatus {
-    Begin,
-    Progress,
-    End,
-}
-
 pub struct Client
 {
     listener: TcpListener,
@@ -49,7 +41,7 @@ impl Client
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
-                        let reader = StreamReader::new(&stream);
+                        let reader = StreamSyntax::new(&stream);
                         for mut request in reader {
 
                             // call handler
@@ -85,41 +77,41 @@ impl Client
     }
 }
 
-pub struct StreamReader<'s>
+pub struct StreamSyntax<'s>
 {
-    status: ParseStatus,
+    born: bool,
     request: HashMap<u16, http::Request<'s>>,
     stream: &'s TcpStream,
 }
 
-impl<'s> StreamReader<'s>
+impl<'s> StreamSyntax<'s>
 {
     fn new(stream: &'s TcpStream) -> Self
     {
-        StreamReader {
-            status: ParseStatus::Begin,
+        StreamSyntax {
+            born: true,
             request: HashMap::new(),
             stream: stream,
         }
     }
 }
 
-impl<'s> Iterator for StreamReader<'s>
+impl<'s> Iterator for StreamSyntax<'s>
 {
     type Item = http::Request<'s>;
 
     fn next(&mut self) -> Option<Self::Item>
     {
-        while !self.request.is_empty() || self.status == ParseStatus::Begin {
+        while !self.request.is_empty() || self.born {
             let h = http::Request::read_header(self.stream);
             let body = http::Request::read_body(self.stream, h.content_length as usize);
 
             self.request.entry(h.request_id)
                 .or_insert(http::Request::new(self.stream));
 
-            if h.content_length == 0 && (h.type_ == fastcgi::STDIN || h.type_ == fastcgi::DATA) {
+            if h.content_length == 0 && h.type_ == fastcgi::PARAMS {
+                self.born = false;
                 return self.request.remove(&h.request_id);
-                self.status = ParseStatus::Progress;
             }
 
             self.request
@@ -127,7 +119,6 @@ impl<'s> Iterator for StreamReader<'s>
                 .expect("HTTP request")
                 .parse_record(h, body);
         }
-
 
         None
     }

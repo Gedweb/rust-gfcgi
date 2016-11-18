@@ -18,9 +18,9 @@ impl gfcgi::Handler for Router
         let h = request.header_utf8(b"HTTP_X_TEST");
         println!("{:?}", h);
 
-//        let mut buf = Vec::new();
-//        request.read_to_end(&mut buf).unwrap();
-//        println!("{:?}", String::from_utf8(buf));
+        let mut buf = Vec::new();
+        request.read_to_end(&mut buf).unwrap();
+        println!("{:?}", String::from_utf8(buf));
 
         None
     }
@@ -31,5 +31,5 @@ fn main()
     let client = gfcgi::Client::new("127.0.0.1:4128");
 
     client.run::<Router>(); // spawn tread
-    client.run::<Router>(); // spawn one more
+//    client.run::<Router>(); // spawn one more
 }

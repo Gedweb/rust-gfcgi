@@ -19,6 +19,7 @@ pub struct Request<'s>
     headers: HashMap<Vec<u8>, Vec<u8>>,
     buf: Vec<u8>,
     stream: &'s TcpStream,
+    readed: bool,
 }
 
 impl<'s> Request<'s>
@@ -34,6 +35,7 @@ impl<'s> Request<'s>
             headers: HashMap::new(),
             buf: Vec::new(),
             stream: stream,
+            readed: false,
         }
     }
 
@@ -130,8 +132,8 @@ impl<'s> Request<'s>
             fastcgi::PARAMS => {
                 self.add_param(body)
             },
-            fastcgi::STDIN | fastcgi::DATA => {
-                self.buf.extend_from_slice(&body);
+            fastcgi::STDIN => {
+                self.buf.extend(body);
             }
             _ => panic!("Undeclarated fastcgi header"),
         }
@@ -142,14 +144,14 @@ impl<'s> io::Read for Request<'s>
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        while buf.len() < self.buf.len() {
+        while self.buf.len() < buf.len() && !self.readed {
             let h = Self::read_header(self.stream);
             if h.content_length == 0 {
+                self.readed = true;
                 break;
             }
-
-            let data = Self::read_body(self.stream, h.content_length as usize);
-            self.buf.extend(data);
+            let body = Self::read_body(self.stream, h.content_length as usize);
+            self.buf.extend(body);
         }
 
         let end = if buf.len() > self.buf.len() {
