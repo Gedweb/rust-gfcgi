@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 
 // io
+use std::io::Write;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 // Thread
@@ -63,7 +64,7 @@ impl Client
                             match response {
                                 Some(_) => (),
                                 None => {
-                                    http::Response::new(request.get_id());
+                                    request.reply().write(&[0u8; 0]).expect("Send response");
                                 },
                             }
                         }

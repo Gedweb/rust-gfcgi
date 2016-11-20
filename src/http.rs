@@ -3,7 +3,7 @@ use fastcgi;
 use fastcgi::{Readable, Writable};
 
 use std::io;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::collections::HashMap;
 use std::net::TcpStream;
 
@@ -19,14 +19,14 @@ pub struct Request<'s>
     headers: HashMap<Vec<u8>, Vec<u8>>,
     buf: Vec<u8>,
     stream: &'s TcpStream,
-    readed: bool,
+    pending: bool,
 }
 
 impl<'s> Request<'s>
 {
 
     /// Constructor
-    pub fn new(stream: &TcpStream) -> Request
+    pub fn new(stream: &'s TcpStream) -> Request
     {
         Request {
             id: 0,
@@ -35,7 +35,7 @@ impl<'s> Request<'s>
             headers: HashMap::new(),
             buf: Vec::new(),
             stream: stream,
-            readed: false,
+            pending: true,
         }
     }
 
@@ -138,16 +138,21 @@ impl<'s> Request<'s>
             _ => panic!("Undeclarated fastcgi header"),
         }
     }
+
+    pub fn reply(&self) -> Response
+    {
+        Response::new(self.stream, self.id)
+    }
 }
 
 impl<'s> io::Read for Request<'s>
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
-        while self.buf.len() < buf.len() && !self.readed {
+        while self.buf.len() < buf.len() && self.pending {
             let h = Self::read_header(self.stream);
             if h.content_length == 0 {
-                self.readed = true;
+                self.pending = false;
                 break;
             }
             let body = Self::read_body(self.stream, h.content_length as usize);
@@ -240,17 +245,19 @@ const HTTP_LINE: &'static str = "\r\n";
 
 #[derive(Debug)]
 /// HTTP implementation of response
-pub struct Response
+pub struct Response<'s>
 {
     id: u16,
     header: HashMap<Vec<u8>, Vec<u8>>,
-    body: Vec<u8>,
+    buf: Vec<u8>,
+    stream: &'s TcpStream,
+    pending: bool,
 }
 
-impl Response
+impl<'s> Response<'s>
 {
     /// Constructor
-    pub fn new(id: u16) -> Response
+    pub fn new(stream: &'s TcpStream, id: u16) -> Self
     {
         let mut header = HashMap::new();
         header.insert(Vec::from(HTTP_STATUS.as_bytes()),
@@ -259,16 +266,15 @@ impl Response
         Response {
             id: id,
             header: header,
-            body: Vec::new(),
+            buf: Vec::new(),
+            stream: stream,
+            pending: false,
         }
     }
 
     /// Get as raw bytes
-    pub fn get_data(&self) -> Vec<u8>
+    pub fn serialized_headers(&self) -> Vec<u8>
     {
-        let mut result: Vec<u8> = Vec::new();
-
-        // http headers
         let mut data: Vec<u8> = Vec::new();
 
         for (name, value) in &self.header {
@@ -280,20 +286,19 @@ impl Response
 
         // http headers delimiter
         data.extend_from_slice(HTTP_LINE.as_bytes());
+        self.fcgi_stdout(&data[..])
+    }
 
-        // http body
-        data.extend_from_slice(&self.body);
+    pub fn fcgi_stdout(&self, buf: &[u8]) -> Vec<u8>
+    {
+        let mut data: Vec<u8> = Vec::new();
 
-        for part in data[..].chunks(fastcgi::MAX_LENGTH) {
-            result.extend_from_slice(&self.record_header(fastcgi::STDOUT, part.len() as u16));
-            result.extend_from_slice(&part);
+        for part in buf.chunks(fastcgi::MAX_LENGTH) {
+            data.extend_from_slice(&self.record_header(fastcgi::STDOUT, part.len() as u16));
+            data.extend_from_slice(&part);
         }
 
-        // terminate record
-        result.extend_from_slice(&self.record_header(fastcgi::STDOUT, 0));
-        result.extend_from_slice(&self.end_request());
-
-        result
+        data
     }
 
     /// End request record
@@ -327,30 +332,70 @@ impl Response
         header.write()
     }
 
-    /// Set some data into response
-    pub fn body(&mut self, data: &[u8]) -> &mut Response
-    {
-        self.body.clear();
-        self.body.extend_from_slice(data);
-
-        self
-    }
-
     /// Add some HTTP header
-    pub fn header(&mut self, key: &[u8], value: &[u8]) -> &mut Response
+    pub fn header(&mut self, key: &[u8], value: &[u8])
     {
         self.header.insert(Vec::from(key), Vec::from(value));
+    }
 
-        self
+    /// Add some HTTP header from utf8
+    pub fn header_utf8(&mut self, key: &str, value: &str)
+    {
+        self.header.insert(key.as_bytes().to_vec(), value.as_bytes().to_vec());
     }
 
     /// Set custom HTTP status
-    pub fn status(&mut self, code: u16) -> &mut Response
+    pub fn status(&mut self, code: u16)
     {
         self.header.insert(Vec::from(HTTP_STATUS.as_bytes()),
                            Vec::from(code.to_string().as_bytes())
         );
-
-        self
     }
 }
+
+impl<'s> io::Write for Response<'s>
+{
+
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize>
+    {
+        if !self.pending {
+            let data = self.serialized_headers();
+            self.stream.write(&data).expect("Send response headers");
+            self.pending = true;
+        }
+
+        self.buf.extend_from_slice(buf);
+        let data = self.fcgi_stdout(&self.buf[..]);
+        self.stream.write(&data).expect("Send respose body");
+
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()>
+    {
+        Ok(())
+    }
+}
+
+impl<'s> Drop for Response<'s>
+{
+    fn drop(&mut self)
+    {
+        let mut data: Vec<u8> = Vec::new();
+        // terminate record
+
+        data.extend_from_slice(&self.record_header(fastcgi::STDOUT, 0));
+        data.extend_from_slice(&self.end_request());
+
+        self.stream.write(&data).expect("Send end");
+    }
+}
+
+
+
+
+
+
+
+
+
