@@ -11,22 +11,22 @@ extern crate byteorder;
 use self::byteorder::{ByteOrder, BigEndian};
 
 #[derive(Debug)]
-pub struct Request<'s>
+pub struct Request<'sr>
 {
     id: u16,
     role: u16,
     flags: u8,
     headers: HashMap<Vec<u8>, Vec<u8>>,
     buf: Vec<u8>,
-    stream: &'s TcpStream,
+    stream: &'sr TcpStream,
     pending: bool,
 }
 
-impl<'s> Request<'s>
+impl<'sr> Request<'sr>
 {
 
     /// Constructor
-    pub fn new(stream: &'s TcpStream) -> Request
+    pub fn new(stream: &'sr TcpStream) -> Request
     {
         Request {
             id: 0,
@@ -138,14 +138,9 @@ impl<'s> Request<'s>
             _ => panic!("Undeclarated fastcgi header"),
         }
     }
-
-    pub fn reply(&self) -> Response
-    {
-        Response::new(self.stream, self.id)
-    }
 }
 
-impl<'s> io::Read for Request<'s>
+impl<'sr> io::Read for Request<'sr>
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
@@ -245,19 +240,19 @@ const HTTP_LINE: &'static str = "\r\n";
 
 #[derive(Debug)]
 /// HTTP implementation of response
-pub struct Response<'s>
+pub struct Response<'sw>
 {
     id: u16,
     header: HashMap<Vec<u8>, Vec<u8>>,
     buf: Vec<u8>,
-    stream: &'s TcpStream,
+    stream: &'sw TcpStream,
     pending: bool,
 }
 
-impl<'s> Response<'s>
+impl<'sw> Response<'sw>
 {
     /// Constructor
-    pub fn new(stream: &'s TcpStream, id: u16) -> Self
+    pub fn new(stream: &'sw TcpStream, id: u16) -> Self
     {
         let mut header = HashMap::new();
         header.insert(Vec::from(HTTP_STATUS.as_bytes()),
@@ -353,7 +348,7 @@ impl<'s> Response<'s>
     }
 }
 
-impl<'s> io::Write for Response<'s>
+impl<'sw> io::Write for Response<'sw>
 {
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>
@@ -377,7 +372,7 @@ impl<'s> io::Write for Response<'s>
     }
 }
 
-impl<'s> Drop for Response<'s>
+impl<'sw> Drop for Response<'sw>
 {
     fn drop(&mut self)
     {

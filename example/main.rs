@@ -2,7 +2,7 @@ extern crate gfcgi;
 
 use std::io::{Read, Write};
 #[derive(Clone, Debug)]
-struct Router {}
+struct Router;
 
 impl gfcgi::Handler for Router
 {
@@ -13,16 +13,17 @@ impl gfcgi::Handler for Router
         }
     }
 
-    fn process(&self, request: &mut gfcgi::Request) -> Option<gfcgi::Response>
+    fn process(&self, request: &mut gfcgi::Request, response: &mut gfcgi::Response)
     {
         let h = request.header_utf8(b"HTTP_X_TEST");
         println!("{:?}", h);
 
-//        let mut buf = Vec::new();
-//        request.read_to_end(&mut buf).unwrap();
-//        println!("{:?}", String::from_utf8(buf));
+        let mut buf = Vec::new();
+        request.read_to_end(&mut buf).unwrap();
+        println!("{:?}", String::from_utf8(buf));
 
-        None
+        response.status(428);
+        response.write(&[121u8; 10]).unwrap();
     }
 }
 

@@ -46,27 +46,10 @@ impl Client
                         for mut request in reader {
 
                             // call handler
-                            let response = handler.process(&mut request);
+                            let mut response = Response::new(&stream, request.get_id());
+                            handler.process(&mut request, &mut response);
 
-                            // drop not readed data
-//                            if !reader.request.get(&id).unwrap().has_readed() {
-//                                let mut drop = [0u8; 32];
-//                                while match reader.read(&mut drop) {
-//                                    Ok(32) => true,
-//                                    Ok(_) => false,
-//                                    Err(e) => panic!("{}", e),
-//                                } {
-//                                    drop = [0u8; 32];
-//                                }
-//                            }
-
-                            // let response
-                            match response {
-                                Some(_) => (),
-                                None => {
-                                    request.reply().write(&[0u8; 0]).expect("Send response");
-                                },
-                            }
+                            response.write(&[0u8; 0]).expect("Send response");
                         }
                     }
                     Err(e) => panic!("{}", e),
@@ -129,7 +112,7 @@ pub trait Handler: Send + Clone + 'static
 {
     fn new() -> Self;
 
-    fn process(&self, &mut Request) -> Option<Response>;
+    fn process(&self, &mut Request, &mut Response);
 }
 
 
