@@ -22,8 +22,9 @@ impl gfcgi::Handler for Router
         request.read_to_end(&mut buf).unwrap();
         println!("{:?}", String::from_utf8(buf));
 
-        response.status(428);
-        response.write(&[121u8; 10]).unwrap();
+        response.header_utf8("Content-type", "text/plain");
+        response.write(b"hello world!").expect("send body");
+
     }
 }
 

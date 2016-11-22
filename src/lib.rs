@@ -12,7 +12,6 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 
 // io
-use std::io::Write;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 // Thread
@@ -44,12 +43,9 @@ impl Client
                     Ok(stream) => {
                         let reader = StreamSyntax::new(&stream);
                         for mut request in reader {
-
                             // call handler
                             let mut response = Response::new(&stream, request.get_id());
                             handler.process(&mut request, &mut response);
-
-                            response.write(&[0u8; 0]).expect("Send response");
                         }
                     }
                     Err(e) => panic!("{}", e),

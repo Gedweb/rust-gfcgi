@@ -135,7 +135,7 @@ impl<'sr> Request<'sr>
             fastcgi::STDIN => {
                 self.buf.extend(body);
             }
-            _ => panic!("Undeclarated fastcgi header"),
+            h => panic!("Undeclarated fastcgi header: {}", h),
         }
     }
 }
@@ -268,7 +268,7 @@ impl<'sw> Response<'sw>
     }
 
     /// Get as raw bytes
-    pub fn serialized_headers(&self) -> Vec<u8>
+    pub fn http_headers(&self) -> Vec<u8>
     {
         let mut data: Vec<u8> = Vec::new();
 
@@ -281,17 +281,6 @@ impl<'sw> Response<'sw>
 
         // http headers delimiter
         data.extend_from_slice(HTTP_LINE.as_bytes());
-        self.fcgi_stdout(&data[..])
-    }
-
-    pub fn fcgi_stdout(&self, buf: &[u8]) -> Vec<u8>
-    {
-        let mut data: Vec<u8> = Vec::new();
-
-        for part in buf.chunks(fastcgi::MAX_LENGTH) {
-            data.extend_from_slice(&self.record_header(fastcgi::STDOUT, part.len() as u16));
-            data.extend_from_slice(&part);
-        }
 
         data
     }
@@ -346,6 +335,26 @@ impl<'sw> Response<'sw>
                            Vec::from(code.to_string().as_bytes())
         );
     }
+
+    fn send_header(&mut self)
+    {
+        if !self.pending {
+            for part in self.http_headers().chunks(fastcgi::MAX_LENGTH) {
+                let header = self.record_header(fastcgi::STDOUT, part.len() as u16);
+                self.stream.write(&header).expect("Send response headers");
+                self.stream.write(&part).expect("Send response headers");
+            }
+
+            self.pending = true;
+        }
+    }
+
+    fn send_chunk(&mut self, end: usize)
+    {
+        let h = self.record_header(fastcgi::STDOUT, end as u16);
+        self.stream.write(&h).expect("Send response body");
+        self.stream.write(&self.buf.drain(..end).collect::<Vec<_>>()).expect("Send response body");
+    }
 }
 
 impl<'sw> io::Write for Response<'sw>
@@ -353,15 +362,11 @@ impl<'sw> io::Write for Response<'sw>
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize>
     {
-        if !self.pending {
-            let data = self.serialized_headers();
-            self.stream.write(&data).expect("Send response headers");
-            self.pending = true;
-        }
-
+        self.send_header();
         self.buf.extend_from_slice(buf);
-        let data = self.fcgi_stdout(&self.buf[..]);
-        self.stream.write(&data).expect("Send respose body");
+        while self.buf.len() > fastcgi::MAX_LENGTH {
+            self.send_chunk(fastcgi::MAX_LENGTH);
+        }
 
         Ok(buf.len())
     }
@@ -377,8 +382,14 @@ impl<'sw> Drop for Response<'sw>
     fn drop(&mut self)
     {
         let mut data: Vec<u8> = Vec::new();
-        // terminate record
 
+        self.send_header();
+
+        // self a rest
+        let end = self.buf.len();
+        self.send_chunk(end);
+
+        // terminate record
         data.extend_from_slice(&self.record_header(fastcgi::STDOUT, 0));
         data.extend_from_slice(&self.end_request());
 
