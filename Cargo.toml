@@ -25,7 +25,3 @@ name = "gfcgi"
 [dependencies]
 byteorder = "^0.5.3"
 
-[dependencies.url]
-version = "^1.2.1"
-features = ["query_encoding"]
-
