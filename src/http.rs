@@ -40,17 +40,21 @@ impl<'sr> Request<'sr>
     }
 
     /// Add request options
-    pub fn add_options(&mut self, data: Vec<u8>)
+    pub fn add_options(&mut self, data: Vec<u8>) -> Result<(), &str>
     {
         let begin_request = fastcgi::BeginRequestBody::read(&data[..]);
         self.role = begin_request.role;
         self.flags = begin_request.flags;
+
+        Ok(())
     }
 
     /// Add param pairs
-    pub fn add_param(&mut self, data: Vec<u8>)
+    pub fn add_param(&mut self, data: Vec<u8>) -> Result<(), &str>
     {
         self.headers.extend(ParamFetcher::new(data).parse_param());
+
+        Ok(())
     }
 
     /// FastCGI requestId
@@ -122,19 +126,19 @@ impl<'sr> Request<'sr>
         }
     }
 
-    pub fn parse_record(&mut self, h: fastcgi::Header, body: Vec<u8>)
+    pub fn parse_record(&mut self, h: fastcgi::Header, body: Vec<u8>) -> Result<(), &str>
     {
         match h.type_ {
             fastcgi::BEGIN_REQUEST => {
                 self.id = h.request_id;
                 self.add_options(body)
             },
-            fastcgi::PARAMS => {
-                self.add_param(body)
-            },
+            fastcgi::PARAMS => self.add_param(body),
             fastcgi::STDIN => {
                 self.buf.extend(body);
-            }
+                Ok(())
+            },
+            fastcgi::ABORT_REQUEST => Err("Request aborted"),
             h => panic!("Undeclarated fastcgi header: {}", h),
         }
     }
@@ -373,14 +377,6 @@ impl<'sw> io::Write for Response<'sw>
 
     fn flush(&mut self) -> io::Result<()>
     {
-        Ok(())
-    }
-}
-
-impl<'sw> Drop for Response<'sw>
-{
-    fn drop(&mut self)
-    {
         let mut data: Vec<u8> = Vec::new();
 
         self.send_header();
@@ -394,12 +390,10 @@ impl<'sw> Drop for Response<'sw>
         data.extend_from_slice(&self.end_request());
 
         self.stream.write(&data).expect("Send end");
+
+        Ok(())
     }
 }
-
-
-
-
 
 
 

@@ -13,17 +13,17 @@ impl gfcgi::Handler for Router
         }
     }
 
-    fn process(&self, request: &mut gfcgi::Request, response: &mut gfcgi::Response)
+    fn process(&self, fcgi: &mut gfcgi::HttpPair)
     {
-        let h = request.header_utf8(b"HTTP_X_TEST");
+        let h = fcgi.request().header_utf8(b"HTTP_X_TEST");
         println!("{:?}", h);
 
         let mut buf = Vec::new();
-        request.read_to_end(&mut buf).unwrap();
+        fcgi.request().read_to_end(&mut buf).unwrap();
         println!("{:?}", String::from_utf8(buf));
 
-        response.header_utf8("Content-type", "text/plain");
-        response.write(b"hello world!").expect("send body");
+        fcgi.response().header_utf8("Content-type", "text/plain");
+        fcgi.response().write(b"hello world!").expect("send body");
 
     }
 }
@@ -33,5 +33,5 @@ fn main()
     let client = gfcgi::Client::new("127.0.0.1:4128");
 
     client.run::<Router>(); // spawn tread
-    client.run::<Router>(); // spawn one more
+//    client.run::<Router>(); // spawn one more
 }
