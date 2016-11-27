@@ -1,7 +1,7 @@
 [package]
 authors = ["Gedweb <inbox@gedweb.name>"]
 name = "gfcgi"
-version = "0.3.1"
+version = "0.4.0"
 keywords = ["FastCGI", "fcgi", "http", "https"]
 readme = "README.md"
 license-file = "LICENSE"
@@ -23,4 +23,5 @@ doc = false
 name = "gfcgi"
 
 [dependencies]
-byteorder = "^0.5.1"
+byteorder = "^0.5.3"
+

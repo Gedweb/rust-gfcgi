@@ -25,3 +25,13 @@ FastCGI it's great solutions to handling HTTP-requests without overhead. Complet
   - [x] data
   - [x] stdout
   - [ ] stderr
+
+##### Trace
+    socket
+        └─stream
+            ├─connection
+            └─handler (request)
+                ├─read headers
+                ├─optional: read body
+                ├─optional: build response
+                └─send response

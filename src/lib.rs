@@ -1,185 +1,153 @@
-/*!
-This crate provieds FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.
+#![allow(dead_code)]
+//! This crate provieds FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.
 
-# Examples
-```
-extern crate gfcgi;
-use std::thread;
+// object
+mod fastcgi;
+mod http;
 
-fn main() {
-    let client = gfcgi::Client::bind("127.0.0.1:4128");
+pub use http::{Request, Response};
 
-    client.run(); // spawn tread
-    client.run(); // spawn one more
-
-    for request in client {
-
-        thread::spawn(move || {
-            let mut response = gfcgi::model::Response::new();
-
-            // set conetent
-            response.body("Welcome message!");
-            // append header
-            response.header("Content-Type", "text/plain; charset=utf-8");
-
-            request.reply(response);
-        });
-    }
-}
-
-```
-*/
-
-pub mod model;
-
+// Data struct
 use std::collections::HashMap;
+use std::iter::Iterator;
 
-use std::io::{Read, Write};
+// net / io
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::io::Write;
 
+// Thread
 use std::thread;
-use std::sync::mpsc;
-
-use model::{Readable, Writable};
 
 pub struct Client
 {
     listener: TcpListener,
-    request_tx: mpsc::Sender<model::Request>,
-    request_rx: mpsc::Receiver<model::Request>,
 }
 
+/// TcpListener wrapper
 impl Client
 {
-    pub fn bind<A: ToSocketAddrs>(addr: A) -> Client
+    pub fn new<A: ToSocketAddrs>(addr: A) -> Self
     {
-        let (tx, rx) = mpsc::channel();
         Client {
-            listener: TcpListener::bind(addr).unwrap(),
-            request_tx: tx,
-            request_rx: rx,
+            listener: TcpListener::bind(addr).expect("Bind address"),
         }
     }
 
-    pub fn run(&self)
+    /// Run thread
+    /// Accept `Handler` as callback
+    pub fn run<T: Handler>(&self)
     {
-        let request_tx = self.request_tx.clone();
-        let listener = self.listener.try_clone().unwrap();
+        let listener = self.listener.try_clone().expect("Clone listener");
+        let handler = T::new();
 
         thread::spawn(move || {
 
             for stream in listener.incoming() {
                 match stream {
                     Ok(stream) => {
-                        let mut fcgi_stream = Stream::new(stream, request_tx.clone());
-                        fcgi_stream.read();
-                        fcgi_stream.write();
-
-                    },
-                    Err(msg) => panic!("{}", msg),
+                        let reader = StreamSyntax::new(&stream);
+                        for mut pair in reader {
+                            // call handler
+                            handler.process(&mut pair);
+                            pair.response().flush().unwrap();
+                        }
+                    }
+                    Err(e) => panic!("{}", e),
                 }
             }
         });
+
+        thread::park();
     }
 }
 
-impl Iterator for Client
-{
-    type Item = model::Request;
+/// HTTP request / response pairs
+pub struct HttpPair<'s>(http::Request<'s>, http::Response<'s>);
 
-    fn next(&mut self) -> Option<model::Request>
+impl<'s> HttpPair<'s>
+{
+    pub fn request(&mut self) -> &mut http::Request<'s>
     {
-        Some(self.request_rx.recv().unwrap())
+        &mut self.0
     }
 
-}
-
-#[derive(Debug)]
-struct Stream
-{
-    _stream: TcpStream,
-    request_count: u16,
-    client_tx: mpsc::Sender<model::Request>,
-    tx: mpsc::Sender<model::Response>,
-    rx: mpsc::Receiver<model::Response>,
-    readable: bool,
-}
-
-impl Stream
-{
-    fn new (stream: TcpStream, client_tx: mpsc::Sender<model::Request>) -> Stream
+    pub fn response(&mut self) -> &mut http::Response<'s>
     {
-        let (tx, rx) = mpsc::channel();
-        Stream {
-            _stream: stream,
-            request_count: 0,
-            client_tx: client_tx,
-            tx: tx,
-            rx: rx,
-            readable: true,
+        &mut self.1
+    }
+}
+
+/// FasctCGI request parser
+pub struct StreamSyntax<'s>
+{
+    born: bool,
+    pair: HashMap<u16, HttpPair<'s>>,
+    stream: &'s TcpStream,
+}
+
+impl<'s> StreamSyntax<'s>
+{
+    fn new(stream: &'s TcpStream) -> Self
+    {
+        StreamSyntax {
+            born: true,
+            pair: HashMap::new(),
+            stream: stream,
         }
     }
+}
 
-    fn write(&mut self)
+/// Iterator implementation
+impl<'s> Iterator for StreamSyntax<'s>
+{
+    type Item = HttpPair<'s>;
+
+    /// Yield HTTP request / response
+    fn next(&mut self) -> Option<Self::Item>
     {
-        while self.request_count != 0 {
-            let response = self.rx.recv().unwrap();
-            self._stream.write(&response.get_data()).unwrap();
-            self.request_count -= 1;
-        }
-    }
+        while !self.pair.is_empty() || self.born {
+            let h = http::Request::fcgi_header(self.stream);
+            let body = http::Request::fcgi_body(self.stream, h.content_length as usize);
 
-    fn read(&mut self)
-    {
-        let mut request_list: HashMap<u16, model::Request> = HashMap::new();
+            self.pair.entry(h.request_id)
+                .or_insert(HttpPair(
+                    http::Request::new(self.stream, h.request_id),
+                    http::Response::new(self.stream, h.request_id),
+                ));
 
-        'read: while self.readable {
-
-            let mut buf: [u8; model::HEADER_LEN] = [0; model::HEADER_LEN];
-
-            match self._stream.read(&mut buf) {
-                Ok(model::HEADER_LEN) => (),
-                _ => panic!("FCGI header mismatch"),
-            };
-
-            let header = model::Header::read(&buf);
-            let request_id = header.request_id.clone();
-
-            match request_list.get(&request_id) {
-                Some(..) => (),
-                None => {
-                    request_list.insert(request_id.clone(), model::Request::new(request_id.clone(), self.tx.clone()));
-                    self.request_count += 1;
-                },
-            };
-
-            let len: usize = header.content_length as usize;
-            let mut body_data: Vec<u8> = Vec::with_capacity(len);
-
-            if header.content_length == 0 {
-                match header.type_ {
-                    model::STDIN => {
-                        self.client_tx.send(request_list.remove(&request_id).unwrap()).unwrap();
-                    },
-                    model::PARAMS | model::DATA => continue 'read,
-                    _ => (),
-                };
-            } else {
-
-                unsafe {
-                    body_data.set_len(len);
+            match h.type_ {
+                fastcgi::ABORT_REQUEST => {
+                    self.pair.remove(&h.request_id).unwrap()
+                        .response()
+                        .flush()
+                        .expect("Send end request on abort")
                 }
-
-                match self._stream.read(&mut body_data) {
-                    Ok(readed_len) if readed_len == len =>
-                        request_list.get_mut(&request_id).unwrap().add_record(&header, body_data),
-                    _  => panic!("Wrong body length"),
+                fastcgi::PARAMS if h.content_length == 0 => {
+                    self.born = false;
+                    return self.pair.remove(&h.request_id);
+                }
+                _ => {
+                    self.pair.get_mut(&h.request_id).unwrap()
+                        .request().fcgi_record(h, body)
                 }
             }
-
-            if request_list.is_empty() {
-                self.readable = false;
-            }
         }
+
+        None
     }
 }
+
+/// Callback trait
+pub trait Handler: Send + Clone + 'static
+{
+    /// Return new instance
+    fn new() -> Self;
+
+    /// Run HTTP-request handling
+    fn process(&self, &mut HttpPair);
+}
+
+
+
+
+
