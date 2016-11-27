@@ -26,10 +26,10 @@ impl<'sr> Request<'sr>
 {
 
     /// Constructor
-    pub fn new(stream: &'sr TcpStream) -> Request
+    pub fn new(stream: &'sr TcpStream, id: u16) -> Request
     {
         Request {
-            id: 0,
+            id: id,
             role: 0,
             flags: 0,
             headers: HashMap::new(),
@@ -40,21 +40,17 @@ impl<'sr> Request<'sr>
     }
 
     /// Add request options
-    pub fn add_options(&mut self, data: Vec<u8>) -> Result<(), &str>
+    pub fn add_options(&mut self, data: Vec<u8>)
     {
         let begin_request = fastcgi::BeginRequestBody::read(&data[..]);
         self.role = begin_request.role;
         self.flags = begin_request.flags;
-
-        Ok(())
     }
 
     /// Add param pairs
-    pub fn add_param(&mut self, data: Vec<u8>) -> Result<(), &str>
+    pub fn add_param(&mut self, data: Vec<u8>)
     {
         self.headers.extend(ParamFetcher::new(data).parse_param());
-
-        Ok(())
     }
 
     /// FastCGI requestId
@@ -105,14 +101,15 @@ impl<'sr> Request<'sr>
         })
     }
 
-    pub fn read_header(mut stream: &TcpStream) -> fastcgi::Header
+    /// Read FastCGI header
+    pub fn fcgi_header(mut stream: &TcpStream) -> fastcgi::Header
     {
         let mut buf: [u8; fastcgi::HEADER_LEN] = [0; fastcgi::HEADER_LEN];
         stream.read(&mut buf).expect("Read fcgi header");
         fastcgi::Header::read(&buf)
     }
 
-    pub fn read_body(mut stream: &TcpStream, length: usize) -> Vec<u8>
+    pub fn fcgi_body(mut stream: &TcpStream, length: usize) -> Vec<u8>
     {
         let mut body: Vec<u8> = Vec::with_capacity(length);
         unsafe {
@@ -126,20 +123,13 @@ impl<'sr> Request<'sr>
         }
     }
 
-    pub fn parse_record(&mut self, h: fastcgi::Header, body: Vec<u8>) -> Result<(), &str>
+    pub fn fcgi_record(&mut self, h: fastcgi::Header, body: Vec<u8>)
     {
         match h.type_ {
-            fastcgi::BEGIN_REQUEST => {
-                self.id = h.request_id;
-                self.add_options(body)
-            },
+            fastcgi::BEGIN_REQUEST => self.add_options(body),
             fastcgi::PARAMS => self.add_param(body),
-            fastcgi::STDIN => {
-                self.buf.extend(body);
-                Ok(())
-            },
-            fastcgi::ABORT_REQUEST => Err("Request aborted"),
-            h => panic!("Undeclarated fastcgi header: {}", h),
+            fastcgi::STDIN => self.buf.extend(body),
+            _ => panic!("Wron FastCGI request header"),
         }
     }
 }
@@ -149,12 +139,12 @@ impl<'sr> io::Read for Request<'sr>
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>
     {
         while self.buf.len() < buf.len() && self.pending {
-            let h = Self::read_header(self.stream);
+            let h = Self::fcgi_header(self.stream);
             if h.content_length == 0 {
                 self.pending = false;
                 break;
             }
-            let body = Self::read_body(self.stream, h.content_length as usize);
+            let body = Self::fcgi_body(self.stream, h.content_length as usize);
             self.buf.extend(body);
         }
 
