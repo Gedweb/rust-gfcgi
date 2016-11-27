@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="API documentation for the Rust `Client` struct in crate `gfcgi`.">
-    <meta name="keywords" content="rust, rustlang, rust-lang, Client">
+    <meta name="description" content="API documentation for the Rust `Handler` trait in crate `gfcgi`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Handler">
 
-    <title>gfcgi::Client - Rust</title>
+    <title>gfcgi::Handler - Rust</title>
 
     <link rel="stylesheet" type="text/css" href="../rustdoc.css">
     <link rel="stylesheet" type="text/css" href="../main.css">
@@ -28,7 +28,7 @@
 
     <nav class="sidebar">
         
-        <p class='location'><a href='index.html'>gfcgi</a></p><script>window.sidebarCurrent = {name: 'Client', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+        <p class='location'><a href='index.html'>gfcgi</a></p><script>window.sidebarCurrent = {name: 'Handler', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
     </nav>
 
     <nav class="sub">
@@ -42,19 +42,27 @@
         </form>
     </nav>
 
-    <section id='main' class="content struct">
-<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>gfcgi</a>::<wbr><a class='struct' href=''>Client</a></span><span class='out-of-band'><span id='render-detail'>
+    <section id='main' class="content trait">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>gfcgi</a>::<wbr><a class='trait' href=''>Handler</a></span><span class='out-of-band'><span id='render-detail'>
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-311' class='srclink' href='../src/gfcgi/src/lib.rs.html#21-24' title='goto source code'>[src]</a></span></h1>
-<pre class='rust struct'>pub struct Client { /* fields omitted */ }</pre><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class='struct' href='../gfcgi/struct.Client.html' title='gfcgi::Client'>Client</a></code></span><span class='out-of-band'><div class='ghost'></div><a id='src-313' class='srclink' href='../src/gfcgi/src/lib.rs.html#27-62' title='goto source code'>[src]</a></span></h3>
-<div class='docblock'><p>TcpListener wrapper</p>
-</div><div class='impl-items'><h4 id='method.new' class='method'><span id='new.v' class='invisible'><code>fn <a href='#method.new' class='fnname'>new</a>&lt;A:&nbsp;<a class='trait' href='https://doc.rust-lang.org/nightly/std/net/addr/trait.ToSocketAddrs.html' title='std::net::addr::ToSocketAddrs'>ToSocketAddrs</a>&gt;(addr: A) -&gt; Self</code></span></h4>
-<h4 id='method.run' class='method'><span id='run.v' class='invisible'><code>fn <a href='#method.run' class='fnname'>run</a>&lt;T:&nbsp;<a class='trait' href='../gfcgi/trait.Handler.html' title='gfcgi::Handler'>Handler</a>&gt;(&amp;self)</code></span></h4>
-<div class='docblock'><p>Run thread
-Accept <code>Handler</code> as callback</p>
-</div></div></section>
+               </span><a id='src-358' class='srclink' href='../src/gfcgi/src/lib.rs.html#141-148' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Handler: <a class='trait' href='https://doc.rust-lang.org/nightly/core/marker/trait.Send.html' title='core::marker::Send'>Send</a> + <a class='trait' href='https://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> + 'static {
+    fn <a href='#tymethod.new' class='fnname'>new</a>() -&gt; Self;
+    fn <a href='#tymethod.process' class='fnname'>process</a>(&amp;self, &amp;mut <a class='struct' href='../gfcgi/struct.HttpPair.html' title='gfcgi::HttpPair'>HttpPair</a>);
+}</pre><div class='docblock'><p>Callback trait</p>
+</div>
+            <h2 id='required-methods'>Required Methods</h2>
+            <div class='methods'>
+        <h3 id='tymethod.new' class='method stab '><span id='new.v' class='invisible'><code>fn <a href='#tymethod.new' class='fnname'>new</a>() -&gt; Self</code></span></h3><div class='docblock'><p>Return new instance</p>
+</div><h3 id='tymethod.process' class='method stab '><span id='process.v' class='invisible'><code>fn <a href='#tymethod.process' class='fnname'>process</a>(&amp;self, &amp;mut <a class='struct' href='../gfcgi/struct.HttpPair.html' title='gfcgi::HttpPair'>HttpPair</a>)</code></span></h3><div class='docblock'><p>Run HTTP-request handling</p>
+</div></div>
+        <h2 id='implementors'>Implementors</h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript" async
+                         src="../implementors/gfcgi/trait.Handler.js">
+                 </script></section>
     <section id='search' class="content hidden"></section>
 
     <section class="footer"></section>
