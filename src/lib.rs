@@ -16,6 +16,7 @@ use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::io::Write;
 
 // Thread
+#[cfg(feature="spawn")]
 use std::thread;
 
 pub struct Client
@@ -35,10 +36,11 @@ impl Client
 
     /// Run thread
     /// Accept `Handler` as callback
-    pub fn run<T: Handler>(&self)
+    #[cfg(feature="spawn")]
+    pub fn run<T: Handler + Send + Clone + 'static>(&self, handler: T)
     {
         let listener = self.listener.try_clone().expect("Clone listener");
-        let handler = T::new();
+        let handler = handler.clone();
 
         thread::spawn(move || {
 
@@ -56,8 +58,25 @@ impl Client
                 }
             }
         });
+    }
 
-        thread::park();
+    /// Accept `Handler` as callback
+    #[cfg(not(feature="spawn"))]
+    pub fn run<T: Handler>(&self, handler: T)
+    {
+        for stream in self.listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    let reader = StreamSyntax::new(&stream);
+                    for mut pair in reader {
+                        // call handler
+                        handler.process(&mut pair);
+                        pair.response().flush().unwrap();
+                    }
+                }
+                Err(e) => panic!("{}", e),
+            }
+        }
     }
 }
 
@@ -138,11 +157,8 @@ impl<'s> Iterator for StreamSyntax<'s>
 }
 
 /// Callback trait
-pub trait Handler: Send + Clone + 'static
+pub trait Handler
 {
-    /// Return new instance
-    fn new() -> Self;
-
     /// Run HTTP-request handling
     fn process(&self, &mut HttpPair);
 }
