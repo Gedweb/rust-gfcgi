@@ -4,15 +4,18 @@ use std::io::{Read, Write};
 #[derive(Clone, Debug)]
 struct Router;
 
-impl gfcgi::Handler for Router
+use std::thread;
+
+impl Router
 {
     fn new() -> Self
     {
-        Router {
-
-        }
+        Router{}
     }
+}
 
+impl gfcgi::Handler for Router
+{
     fn process(&self, fcgi: &mut gfcgi::HttpPair)
     {
         // get a header
@@ -37,6 +40,11 @@ fn main()
 {
     let client = gfcgi::Client::new("127.0.0.1:4128");
 
-    client.run::<Router>(); // spawn tread
-//    client.run::<Router>(); // spawn one more
+    // run listener
+    client.run(Router::new());
+
+    if cfg!(feature = "spawn") {
+        client.run(Router::new()); // spawn worker
+        thread::park(); // keep main process
+    }
 }
