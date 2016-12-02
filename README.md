@@ -16,13 +16,13 @@ FastCGI it's great solutions to handling HTTP-requests without overhead. Complet
 - [x] Header
   - [ ] get_values
   - [ ] get_values_result
-  - [ ] unknown_type
+  - [x] unknown_type
   - [x] begin_request
-  - [ ] abort_request
+  - [x] abort_request
   - [x] end_request
   - [x] params
   - [x] stdin
-  - [x] data
+  - [ ] data
   - [x] stdout
   - [ ] stderr
 
