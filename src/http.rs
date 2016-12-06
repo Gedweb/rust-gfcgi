@@ -174,7 +174,7 @@ struct ParamFetcher
 impl ParamFetcher
 {
     /// Constructor
-    fn new(data: Vec<u8>) -> Self
+    fn new(data: Vec<u8>) -> ParamFetcher
     {
         ParamFetcher {
             data: data,
@@ -246,7 +246,7 @@ pub struct Response<'sw>
 impl<'sw> Response<'sw>
 {
     /// Constructor
-    pub fn new(stream: &'sw TcpStream, id: u16) -> Self
+    pub fn new(stream: &'sw TcpStream, id: u16) -> Response
     {
         let mut header = HashMap::new();
         header.insert(Vec::from(HTTP_STATUS.as_bytes()),

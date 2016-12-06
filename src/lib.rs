@@ -27,7 +27,7 @@ pub struct Client
 /// TcpListener wrapper
 impl Client
 {
-    pub fn new<A: ToSocketAddrs>(addr: A) -> Self
+    pub fn new<A: ToSocketAddrs>(addr: A) -> Client
     {
         Client {
             listener: TcpListener::bind(addr).expect("Bind address"),
@@ -106,7 +106,7 @@ pub struct StreamSyntax<'s>
 
 impl<'s> StreamSyntax<'s>
 {
-    fn new(stream: &'s TcpStream) -> Self
+    fn new(stream: &'s TcpStream) -> StreamSyntax
     {
         StreamSyntax {
             born: true,
