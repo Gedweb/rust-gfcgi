@@ -126,7 +126,7 @@ impl<'s> Iterator for StreamSyntax<'s>
     {
         while !self.pair.is_empty() || self.born {
             let h = http::Request::fcgi_header(self.stream);
-            let body = http::Request::fcgi_body(self.stream, h.content_length as usize);
+            let body = http::Request::fcgi_body(self.stream, &h);
 
             self.pair.entry(h.request_id)
                 .or_insert(HttpPair(
