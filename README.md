@@ -6,7 +6,9 @@ Library is supporting multithreaded socket listener and HTTP-instances multiplex
 Documentation is [here](http://gedweb.github.io/rust-gfcgi/gfcgi/ "Documentation").
 
 ##### About FastCGI
-FastCGI it's great solutions to handling HTTP-requests without overhead. Completely supporting HTTP or HTTPS by any popular web-servers.
+FastCGI it's great solutions to handling HTTP-requests without overhead. Completely supporting HTTP or HTTPS by any popular web-servers. 
+
+[Specification](doc/fcgi-spec.md)
 
 ##### Planned
 - [x] Role
