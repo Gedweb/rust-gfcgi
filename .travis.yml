@@ -1,0 +1,6 @@
+language: rust
+rust:
+  - stable
+matrix:
+  allow_failures:
+    - gfcgi: spawn
