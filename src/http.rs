@@ -109,7 +109,21 @@ impl<'sr> Request<'sr>
         fastcgi::Header::read(&buf)
     }
 
-    pub fn fcgi_body(mut stream: &TcpStream, length: usize) -> Vec<u8>
+    pub fn fcgi_body(stream: &TcpStream, h: &fastcgi::Header) -> Vec<u8>
+    {
+        let body = match h.content_length {
+            0 => Vec::new(),
+            _ => Self::stream_read(stream, h.content_length as usize),
+        };
+
+        if h.padding_length > 0 {
+            Self::stream_read(stream, h.padding_length as usize);
+        }
+
+        body
+    }
+
+    pub fn stream_read(mut stream: &TcpStream, length: usize) -> Vec<u8>
     {
         let mut body: Vec<u8> = Vec::with_capacity(length);
         unsafe {
@@ -129,7 +143,7 @@ impl<'sr> Request<'sr>
             fastcgi::BEGIN_REQUEST => self.add_options(body),
             fastcgi::PARAMS => self.add_param(body),
             fastcgi::STDIN => self.buf.extend(body),
-            _ => panic!("Wron FastCGI request header"),
+            _ => panic!("Wrong FastCGI request header"),
         }
     }
 }
@@ -144,7 +158,7 @@ impl<'sr> io::Read for Request<'sr>
                 self.pending = false;
                 break;
             }
-            let body = Self::fcgi_body(self.stream, h.content_length as usize);
+            let body = Self::fcgi_body(self.stream, &h);
             self.buf.extend(body);
         }
 
