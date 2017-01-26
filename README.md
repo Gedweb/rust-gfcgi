@@ -1,6 +1,6 @@
 # The FastCGI Rust implementation.
 
-[![Build Status](https://travis-ci.org/Gedweb/rust-gfcgi.svg?branch=master)](https://travis-ci.org/Gedweb/rust-gfcgi) [![docs.rs](https://docs.rs/gfcgi/badge.svg)](https://docs.rs/gfcgi) [![Cargo](https://img.shields.io/crates/v/gfcgi.svg)](https://crates.io/crates/gfcgi) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Build Status](https://travis-ci.org/Gedweb/rust-gfcgi.svg)](https://travis-ci.org/Gedweb/rust-gfcgi) [![docs.rs](https://docs.rs/gfcgi/badge.svg)](https://docs.rs/gfcgi) [![Cargo](https://img.shields.io/crates/v/gfcgi.svg)](https://crates.io/crates/gfcgi) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ##### Description
 *gfcgi* a native Rust library for FastCGI.  
