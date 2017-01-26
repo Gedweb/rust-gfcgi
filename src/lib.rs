@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-//! This crate provieds FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.
-
+//! This crate provides FastCGI client with supporting multithreaded socket listener and HTTP-instances multiplexed into a single connection.
 // object
 mod fastcgi;
 mod http;
