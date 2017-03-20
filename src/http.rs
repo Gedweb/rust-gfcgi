@@ -264,7 +264,8 @@ impl<'sw> Response<'sw>
     {
         let mut header = HashMap::new();
         header.insert(Vec::from(HTTP_STATUS.as_bytes()),
-                      Vec::from("200".as_bytes()));
+                      Vec::from("404".as_bytes())
+        );
 
         Response {
             id: id,
