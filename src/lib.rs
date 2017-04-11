@@ -42,26 +42,18 @@ impl Client
         let handler = handler.clone();
 
         thread::spawn(move || {
-
-            for stream in listener.incoming() {
-                match stream {
-                    Ok(stream) => {
-                        let reader = StreamSyntax::new(&stream);
-                        for mut pair in reader {
-                            // call handler
-                            handler.process(&mut pair);
-                            pair.response().flush().unwrap();
-                        }
-                    }
-                    Err(e) => panic!("{}", e),
-                }
-            }
+            self.listen(handler)
         });
     }
 
     /// Accept `Handler` as callback
     #[cfg(not(feature="spawn"))]
     pub fn run<T: Handler>(&self, handler: T)
+    {
+        self.listen(handler)
+    }
+
+    fn listen<T: Handler>(&self, handler: T)
     {
         for stream in self.listener.incoming() {
             match stream {
@@ -70,7 +62,7 @@ impl Client
                     for mut pair in reader {
                         // call handler
                         handler.process(&mut pair);
-                        pair.response().flush().unwrap();
+                        pair.1.flush().unwrap();
                     }
                 }
                 Err(e) => panic!("{}", e),
@@ -80,20 +72,7 @@ impl Client
 }
 
 /// HTTP request / response pairs
-pub struct HttpPair<'s>(http::Request<'s>, http::Response<'s>);
-
-impl<'s> HttpPair<'s>
-{
-    pub fn request(&mut self) -> &mut http::Request<'s>
-    {
-        &mut self.0
-    }
-
-    pub fn response(&mut self) -> &mut http::Response<'s>
-    {
-        &mut self.1
-    }
-}
+pub type HttpPair<'s> = (Request<'s>, Response<'s>);
 
 /// FasctCGI request parser
 pub struct StreamSyntax<'s>
@@ -124,20 +103,19 @@ impl<'s> Iterator for StreamSyntax<'s>
     fn next(&mut self) -> Option<Self::Item>
     {
         while !self.pair.is_empty() || self.born {
-            let h = http::Request::fcgi_header(self.stream);
-            let body = http::Request::fcgi_body(self.stream, &h);
+            let h = Request::fcgi_header(self.stream);
+            let body = Request::fcgi_body(self.stream, &h);
 
             self.pair.entry(h.request_id)
-                .or_insert(HttpPair(
-                    http::Request::new(self.stream, h.request_id),
-                    http::Response::new(self.stream, h.request_id),
+                .or_insert((
+                    Request::new(self.stream, h.request_id),
+                    Response::new(self.stream, h.request_id),
                 ));
 
             match h.type_ {
                 fastcgi::ABORT_REQUEST => {
                     self.pair.remove(&h.request_id).unwrap()
-                        .response()
-                        .flush()
+                        .1.flush()
                         .expect("Send end request on abort")
                 }
                 fastcgi::PARAMS if h.content_length == 0 => {
@@ -146,7 +124,7 @@ impl<'s> Iterator for StreamSyntax<'s>
                 }
                 _ => {
                     self.pair.get_mut(&h.request_id).unwrap()
-                        .request().fcgi_record(h, body)
+                        .0.fcgi_record(h, body)
                 }
             }
         }
