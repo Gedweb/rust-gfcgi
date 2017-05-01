@@ -59,10 +59,13 @@ impl Client
             match stream {
                 Ok(stream) => {
                     let reader = StreamSyntax::new(&stream);
-                    for mut pair in reader {
+                    for pair in reader {
+
                         // call handler
-                        handler.process(&mut pair);
-                        pair.1.flush().unwrap();
+                        let (mut request, mut response) = pair;
+                        handler.process(&mut request, &mut response);
+
+                        response.flush().unwrap();
                     }
                 }
                 Err(e) => panic!("{}", e),
@@ -137,7 +140,7 @@ impl<'s> Iterator for StreamSyntax<'s>
 pub trait Handler
 {
     /// Run HTTP-request handling
-    fn process(&self, &mut HttpPair);
+    fn process(&self, &mut Request, &mut Response);
 }
 
 

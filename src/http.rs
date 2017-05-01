@@ -6,6 +6,7 @@ use std::io;
 use std::io::{Read, Write};
 use std::collections::HashMap;
 use std::net::TcpStream;
+use std::str;
 
 extern crate byteorder;
 use self::byteorder::{ByteOrder, BigEndian};
@@ -66,12 +67,12 @@ impl<'sr> Request<'sr>
     }
 
     /// List all headers in utf8
-    pub fn headers_utf8(&self) -> HashMap<String, String>
+    pub fn headers_utf8(&self) -> HashMap<&str, &str>
     {
         self.headers.iter()
             .map(|(k, v)| (
-                String::from_utf8_lossy(k).into_owned(),
-                String::from_utf8_lossy(v).into_owned(),
+                str::from_utf8(k).expect("headers_utf8 name"),
+                str::from_utf8(v).expect("headers_utf8 value"),
             ))
             .collect::<HashMap<_, _>>()
     }
@@ -85,18 +86,18 @@ impl<'sr> Request<'sr>
 
     /// Header by key in utf8
     /// Key are case-sensitive
-    pub fn header_utf8(&self, key: &[u8]) -> Option<String>
+    pub fn header_utf8(&self, key: &[u8]) -> Option<&str>
     {
-        self.headers.get(key).map(|v| String::from_utf8_lossy(v).into_owned())
+        self.headers.get(key).map(|v| str::from_utf8(v).expect("header_utf8"))
     }
 
     /// A vector with multiple header in utf8
     /// Key are case-sensitive
-    pub fn header_multiple_utf8(&self, key: &[u8]) -> Option<Vec<String>>
+    pub fn header_multiple_utf8(&self, key: &[u8]) -> Option<Vec<&str>>
     {
         self.header_utf8(key).map(|v| {
                 v.split(',')
-                .map(|h| h.trim().to_string())
+                .map(|h| h.trim())
                 .collect()
         })
     }
