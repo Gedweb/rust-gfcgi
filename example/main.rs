@@ -16,22 +16,21 @@ impl Router
 
 impl gfcgi::Handler for Router
 {
-    fn process(&self, fcgi: &mut gfcgi::HttpPair)
+    fn process(&self, request: &mut gfcgi::Request, response: &mut gfcgi::Response)
     {
         // get a header
-        let h = fcgi.request().header_utf8(b"HTTP_X_TEST");
-        println!("{:?}", h);
+        println!("{:?}", request.header_utf8(b"HTTP_X_TEST"));
 
         // read content
         let mut buf = Vec::new();
-        fcgi.request().read_to_end(&mut buf).unwrap();
+        request.read_to_end(&mut buf).unwrap();
         println!("{:?}", String::from_utf8(buf));
 
         // set header
-        fcgi.response().header_utf8("Content-type", "text/plain");
+        response.header_utf8("Content-type", "text/plain");
 
         // send content
-        fcgi.response().write(b"hello world!").expect("send body");
+        response.write(b"hello world!").expect("send body");
 
     }
 }
