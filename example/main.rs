@@ -48,8 +48,8 @@ fn main()
     client.run(Router::new());
 
     if cfg!(feature = "spawn") {
-        client.run(Router::new()); // spawn worker
+        // spawn worker
+        client.run(Router::new())
+            .join()
     }
-
-    thread::park(); // keep main process
 }
