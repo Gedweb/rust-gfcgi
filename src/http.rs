@@ -25,41 +25,6 @@ pub struct Request<'sr>
 
 impl<'sr> Request<'sr>
 {
-
-    /// Constructor
-    pub fn new(stream: &'sr TcpStream, id: u16) -> Request
-    {
-        Request {
-            id: id,
-            role: 0,
-            flags: 0,
-            headers: HashMap::new(),
-            buf: Vec::new(),
-            stream: stream,
-            pending: true,
-        }
-    }
-
-    /// Add request options
-    pub fn add_options(&mut self, data: Vec<u8>)
-    {
-        let begin_request = fastcgi::BeginRequestBody::read(&data[..]);
-        self.role = begin_request.role;
-        self.flags = begin_request.flags;
-    }
-
-    /// Add param pairs
-    pub fn add_param(&mut self, data: Vec<u8>)
-    {
-        self.headers.extend(ParamFetcher::new(data).parse_param());
-    }
-
-    /// FastCGI requestId
-    pub fn get_id(&self) -> u16
-    {
-        self.id
-    }
-
     /// List all headers in bytes
     pub fn headers(&self) -> &HashMap<Vec<u8>, Vec<u8>>
     {
@@ -102,15 +67,49 @@ impl<'sr> Request<'sr>
         })
     }
 
+    /// Constructor
+    pub(crate) fn new(stream: &'sr TcpStream, id: u16) -> Request
+    {
+        Request {
+            id: id,
+            role: 0,
+            flags: 0,
+            headers: HashMap::new(),
+            buf: Vec::new(),
+            stream: stream,
+            pending: true,
+        }
+    }
+
+    /// Add request options
+    pub(crate) fn add_options(&mut self, data: Vec<u8>)
+    {
+        let begin_request = fastcgi::BeginRequestBody::read(&data[..]);
+        self.role = begin_request.role;
+        self.flags = begin_request.flags;
+    }
+
+    /// Add param pairs
+    pub(crate) fn add_param(&mut self, data: Vec<u8>)
+    {
+        self.headers.extend(ParamFetcher::new(data).parse_param());
+    }
+
+    /// FastCGI requestId
+    pub(crate) fn get_id(&self) -> u16
+    {
+        self.id
+    }
+
     /// Read FastCGI header
-    pub fn fcgi_header(mut stream: &TcpStream) -> fastcgi::Header
+    pub(crate) fn fcgi_header(mut stream: &TcpStream) -> fastcgi::Header
     {
         let mut buf: [u8; fastcgi::HEADER_LEN] = [0; fastcgi::HEADER_LEN];
         stream.read(&mut buf).expect("Read fcgi header");
         fastcgi::Header::read(&buf)
     }
 
-    pub fn fcgi_body(stream: &TcpStream, h: &fastcgi::Header) -> Vec<u8>
+    pub(crate) fn fcgi_body(stream: &TcpStream, h: &fastcgi::Header) -> Vec<u8>
     {
         let body = match h.content_length {
             0 => Vec::new(),
@@ -124,7 +123,7 @@ impl<'sr> Request<'sr>
         body
     }
 
-    pub fn stream_read(mut stream: &TcpStream, length: usize) -> Vec<u8>
+    pub(crate) fn stream_read(mut stream: &TcpStream, length: usize) -> Vec<u8>
     {
         let mut body: Vec<u8> = Vec::with_capacity(length);
         unsafe {
@@ -138,7 +137,7 @@ impl<'sr> Request<'sr>
         }
     }
 
-    pub fn fcgi_record(&mut self, h: fastcgi::Header, body: Vec<u8>)
+    pub(crate) fn fcgi_record(&mut self, h: fastcgi::Header, body: Vec<u8>)
     {
         match h.type_ {
             fastcgi::BEGIN_REQUEST => self.add_options(body),
@@ -260,8 +259,34 @@ pub struct Response<'sw>
 
 impl<'sw> Response<'sw>
 {
+    /// Add some HTTP header
+    pub fn header(&mut self, key: &[u8], value: &[u8]) -> &mut Response<'sw>
+    {
+        self.header.insert(Vec::from(key), Vec::from(value));
+
+        self
+    }
+
+    /// Add some HTTP header from utf8
+    pub fn header_utf8(&mut self, key: &str, value: &str) -> &mut Response<'sw>
+    {
+        self.header.insert(key.as_bytes().to_vec(), value.as_bytes().to_vec());
+
+        self
+    }
+
+    /// Set custom HTTP status
+    pub fn status(&mut self, code: u16) -> &mut Response<'sw>
+    {
+        self.header.insert(Vec::from(HTTP_STATUS.as_bytes()),
+                           Vec::from(code.to_string().as_bytes())
+        );
+
+        self
+    }
+
     /// Constructor
-    pub fn new(stream: &'sw TcpStream, id: u16) -> Response
+    pub(crate) fn new(stream: &'sw TcpStream, id: u16) -> Response
     {
         let mut header = HashMap::new();
         header.insert(Vec::from(HTTP_STATUS.as_bytes()),
@@ -278,7 +303,7 @@ impl<'sw> Response<'sw>
     }
 
     /// Get as raw bytes
-    pub fn http_headers(&self) -> Vec<u8>
+    pub(crate) fn http_headers(&self) -> Vec<u8>
     {
         let mut data: Vec<u8> = Vec::new();
 
@@ -324,26 +349,6 @@ impl<'sw> Response<'sw>
         };
 
         header.write()
-    }
-
-    /// Add some HTTP header
-    pub fn header(&mut self, key: &[u8], value: &[u8])
-    {
-        self.header.insert(Vec::from(key), Vec::from(value));
-    }
-
-    /// Add some HTTP header from utf8
-    pub fn header_utf8(&mut self, key: &str, value: &str)
-    {
-        self.header.insert(key.as_bytes().to_vec(), value.as_bytes().to_vec());
-    }
-
-    /// Set custom HTTP status
-    pub fn status(&mut self, code: u16)
-    {
-        self.header.insert(Vec::from(HTTP_STATUS.as_bytes()),
-                           Vec::from(code.to_string().as_bytes())
-        );
     }
 
     fn send_header(&mut self)

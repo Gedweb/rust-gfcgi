@@ -11,11 +11,10 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 
 // net / io
-use std::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::net::{TcpListener, TcpStream, ToSocketAddrs, Incoming};
 use std::io::Write;
 
 // Thread
-#[cfg(feature="spawn")]
 use std::thread;
 
 pub struct Client
@@ -36,26 +35,26 @@ impl Client
     /// Run thread
     /// Accept `Handler` as callback
     #[cfg(feature="spawn")]
-    pub fn run<T: Handler + Send + Clone + 'static>(&self, handler: T)
+    pub fn run<T: Handler + Send + Clone + 'static>(&self, handler: T) -> std::thread::JoinHandle<()>
     {
         let listener = self.listener.try_clone().expect("Clone listener");
         let handler = handler.clone();
 
         thread::spawn(move || {
-            self.listen(handler)
-        });
+            Self::listen(listener.incoming(), handler);
+        })
     }
 
     /// Accept `Handler` as callback
     #[cfg(not(feature="spawn"))]
     pub fn run<T: Handler>(&self, handler: T)
     {
-        self.listen(handler)
+        Self::listen(self.listener.incoming(), handler);
     }
 
-    fn listen<T: Handler>(&self, handler: T)
+    fn listen<T: Handler>(incoming: Incoming, handler: T)
     {
-        for stream in self.listener.incoming() {
+        for stream in incoming {
             match stream {
                 Ok(stream) => {
                     let reader = StreamSyntax::new(&stream);
@@ -140,7 +139,7 @@ impl<'s> Iterator for StreamSyntax<'s>
 pub trait Handler
 {
     /// Run HTTP-request handling
-    fn process(&self, &mut Request, &mut Response);
+    fn process(&self, request: &mut Request, response: &mut Response);
 }
 
 
