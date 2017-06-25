@@ -15,6 +15,7 @@ use std::net::{TcpListener, TcpStream, ToSocketAddrs, Incoming};
 use std::io::Write;
 
 // Thread
+#[cfg(feature="spawn")]
 use std::thread;
 
 pub struct Client
