@@ -14,57 +14,28 @@ use std::iter::Iterator;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs, Incoming};
 use std::io::Write;
 
-pub struct Client
+/// Incoming streams with `Hander` implementation
+pub fn listen(incoming: Incoming, handler: &Handler)
 {
-    listener: TcpListener,
-}
+    for stream in incoming {
+        match stream {
+            Ok(stream) => {
+                let reader = StreamSyntax::new(&stream);
+                for pair in reader {
 
-impl Clone for Client
-{
-    fn clone(&self) -> Self
-    {
-        Self {
-            listener: self.listener.try_clone().expect("Clone listener")
-        }
-    }
-}
+                    // call handler
+                    let (mut request, mut response) = pair;
+                    handler.process(&mut request, &mut response);
 
-/// TcpListener wrapper
-impl Client
-{
-    pub fn new<A: ToSocketAddrs>(addr: A) -> Client
-    {
-        Client {
-            listener: TcpListener::bind(addr).expect("Bind address"),
-        }
-    }
-
-    /// Accept `Handler` with callback
-    pub fn run<T: Handler>(&self, handler: T)
-    {
-        Self::listen(self.listener.incoming(), handler);
-    }
-
-    fn listen<T: Handler>(incoming: Incoming, handler: T)
-    {
-        for stream in incoming {
-            match stream {
-                Ok(stream) => {
-                    let reader = StreamSyntax::new(&stream);
-                    for pair in reader {
-
-                        // call handler
-                        let (mut request, mut response) = pair;
-                        handler.process(&mut request, &mut response);
-
-                        response.flush().unwrap();
-                    }
+                    response.flush().unwrap();
                 }
-                Err(e) => panic!("{}", e),
             }
+            Err(e) => panic!("{}", e),
         }
     }
 }
+
+
 
 /// HTTP request / response pairs
 pub type HttpPair<'s> = (Request<'s>, Response<'s>);

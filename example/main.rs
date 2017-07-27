@@ -3,6 +3,8 @@ extern crate gfcgi;
 use std::io::{Read, Write};
 use std::thread;
 
+use std::net::TcpListener;
+
 struct Router();
 
 impl gfcgi::Handler for Router
@@ -33,13 +35,13 @@ impl gfcgi::Handler for Router
 
 fn main()
 {
-    let client = gfcgi::Client::new("127.0.0.1:4128");
+    let listener = TcpListener::bind("0.0.0.0:4128").expect("Bind address");
 
     // run listeners
     for _ in 0..5 {
-        let client = client.clone();
+        let listener = listener.try_clone().expect("Clone listener");
         thread::spawn(move || {
-            client.run(Router());
+            gfcgi::listen(listener.incoming(), Router());
         });
     }
 
