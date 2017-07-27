@@ -3,16 +3,7 @@ extern crate gfcgi;
 use std::io::{Read, Write};
 use std::thread;
 
-#[derive(Clone, Debug)]
-struct Router;
-
-impl Router
-{
-    fn new() -> Self
-    {
-        Router{}
-    }
-}
+struct Router();
 
 impl gfcgi::Handler for Router
 {
@@ -44,12 +35,13 @@ fn main()
 {
     let client = gfcgi::Client::new("127.0.0.1:4128");
 
-    // run listener
-    client.run(Router::new());
-
-    if cfg!(feature = "spawn") {
-        // spawn worker
-        client.run(Router::new())
-            .join()
+    // run listeners
+    for _ in 0..5 {
+        let client = client.clone();
+        thread::spawn(move || {
+            client.run(Router());
+        });
     }
+
+    thread::park();
 }

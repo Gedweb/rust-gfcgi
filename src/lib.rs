@@ -14,13 +14,19 @@ use std::iter::Iterator;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs, Incoming};
 use std::io::Write;
 
-// Thread
-#[cfg(feature="spawn")]
-use std::thread;
-
 pub struct Client
 {
     listener: TcpListener,
+}
+
+impl Clone for Client
+{
+    fn clone(&self) -> Self
+    {
+        Self {
+            listener: self.listener.try_clone().expect("Clone listener")
+        }
+    }
 }
 
 /// TcpListener wrapper
@@ -33,21 +39,7 @@ impl Client
         }
     }
 
-    /// Run thread
-    /// Accept `Handler` as callback
-    #[cfg(feature="spawn")]
-    pub fn run<T: Handler + Send + Clone + 'static>(&self, handler: T) -> std::thread::JoinHandle<()>
-    {
-        let listener = self.listener.try_clone().expect("Clone listener");
-        let handler = handler.clone();
-
-        thread::spawn(move || {
-            Self::listen(listener.incoming(), handler);
-        })
-    }
-
-    /// Accept `Handler` as callback
-    #[cfg(not(feature="spawn"))]
+    /// Accept `Handler` with callback
     pub fn run<T: Handler>(&self, handler: T)
     {
         Self::listen(self.listener.incoming(), handler);
