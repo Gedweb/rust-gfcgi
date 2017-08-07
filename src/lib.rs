@@ -13,9 +13,10 @@ use std::iter::Iterator;
 // net / io
 use std::net::{TcpListener, TcpStream, ToSocketAddrs, Incoming};
 use std::io::Write;
+use std::sync::Arc;
 
 /// Incoming streams with `Hander` implementation
-pub fn listen(incoming: Incoming, handler: &Handler)
+pub fn listen(incoming: Incoming, handler: Arc<Handler>)
 {
     for stream in incoming {
         match stream {
