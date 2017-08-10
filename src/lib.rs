@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::iter::Iterator;
 
 // net / io
-use std::net::{TcpListener, TcpStream, ToSocketAddrs, Incoming};
+use std::net::{TcpStream, Incoming};
 use std::io::Write;
 use std::sync::Arc;
 
