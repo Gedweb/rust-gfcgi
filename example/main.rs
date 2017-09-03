@@ -2,6 +2,7 @@ extern crate gfcgi;
 
 use std::io::{Read, Write};
 use std::thread;
+use std::sync::Arc;
 
 use std::net::TcpListener;
 
@@ -41,7 +42,7 @@ fn main()
     for _ in 0..5 {
         let listener = listener.try_clone().expect("Clone listener");
         thread::spawn(move || {
-            gfcgi::listen(listener.incoming(), Router());
+            gfcgi::listen(listener.incoming(), Arc::new(Router()));
         });
     }
 
