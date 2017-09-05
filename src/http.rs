@@ -143,7 +143,7 @@ impl<'sr> Request<'sr>
             fastcgi::BEGIN_REQUEST => self.add_options(body),
             fastcgi::PARAMS => self.add_param(body),
             fastcgi::STDIN => self.buf.extend(body),
-            _ => panic!("Wrong FastCGI request header"),
+            _ => panic!("Wrong FastCGI request header: {}", h.type_),
         }
     }
 }

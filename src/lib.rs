@@ -15,7 +15,7 @@ use std::net::{TcpStream, Incoming};
 use std::io::Write;
 use std::sync::Arc;
 
-/// Incoming streams with `Hander` implementation
+/// Run listener for incoming streams with `Hander` implementation
 pub fn listen(incoming: Incoming, handler: Arc<Handler>)
 {
     for stream in incoming {
