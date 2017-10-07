@@ -1,12 +1,13 @@
 //! HTTP implementation
-use fastcgi;
-use fastcgi::{Readable, Writable};
+use fastcgi::{self, Readable, Writable};
 
-use std::io;
-use std::io::{Read, Write};
+use std::{
+    cmp,
+    str,
+};
+use std::io::{self, Read, Write};
 use std::collections::HashMap;
 use std::net::TcpStream;
-use std::str;
 
 extern crate byteorder;
 use self::byteorder::{ByteOrder, BigEndian};
@@ -158,15 +159,10 @@ impl<'sr> io::Read for Request<'sr>
                 self.pending = false;
                 break;
             }
-            let body = Self::fcgi_body(self.stream, &h);
-            self.buf.extend(body);
+            self.buf.extend(Self::fcgi_body(self.stream, &h));
         }
 
-        let end = if buf.len() > self.buf.len() {
-            self.buf.len()
-        } else {
-            buf.len()
-        };
+        let end = cmp::min(self.buf.len(), buf.len());
 
         // TODO: how avoid it?
         for (k, v) in self.buf.drain(..end).enumerate() {
