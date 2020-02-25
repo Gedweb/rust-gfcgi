@@ -3,11 +3,11 @@
 [![Build Status](https://travis-ci.org/Gedweb/rust-gfcgi.svg)](https://travis-ci.org/Gedweb/rust-gfcgi) [![docs.rs](https://docs.rs/gfcgi/badge.svg)](https://docs.rs/gfcgi) [![Cargo](https://img.shields.io/crates/v/gfcgi.svg)](https://crates.io/crates/gfcgi) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 #### Description
-*gfcgi* a native Rust library for FastCGI.  
-Library is supporting multithreaded socket listener and HTTP-instances multiplexed onto a single connection.
+*gfcgi* is a native Rust library for FastCGI.  
+This library supports multithreaded socket listeners and HTTP-instances multiplexed onto a single connection.
 
 #### About FastCGI
-FastCGI it's great solutions to handling HTTP-requests without overhead. Completely supporting HTTP or HTTPS by any popular web-servers. 
+FastCGI is a great solution to handling HTTP-requests without overhead. Completely supporting HTTP or HTTPS by any of the leading popular web-servers (Apache HTTPd, nginx, etc). 
 
 [Specification](doc/fcgi-spec.md) 
 
@@ -19,7 +19,7 @@ Import the library within your code.
     use std::io::{Read, Write}; 
     use std::thread;
 ```
-Some your router struct
+An example of a router struct
 ```rust
     #[derive(Clone)]
     struct Router;
@@ -56,7 +56,7 @@ Implement [`gfcgi::Handler`](https://docs.rs/gfcgi/0.4.3/gfcgi/trait.Handler.htm
         }
     }
 ```
-Now run [`listener`](https://docs.rs/gfcgi/0.4.3/gfcgi/struct.Client.html), you can spawn thread if set `spawn` feature in `Cargo.toml`
+Now run [`listener`](https://docs.rs/gfcgi/0.4.3/gfcgi/struct.Client.html), you can spawn threads if the `spawn` feature is set in `Cargo.toml`
 ```rust
     fn main()
     {
