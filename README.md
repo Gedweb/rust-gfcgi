@@ -1,13 +1,19 @@
 # The FastCGI Rust implementation.
 
-[![Build Status](https://travis-ci.org/Gedweb/rust-gfcgi.svg)](https://travis-ci.org/Gedweb/rust-gfcgi) [![docs.rs](https://docs.rs/gfcgi/badge.svg)](https://docs.rs/gfcgi) [![Cargo](https://img.shields.io/badge/crates.io-gfcg=0.4.3-brightgreen.svg)](https://crates.io/crates/gfcgi) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![docs.rs](https://docs.rs/gfcgi/badge.svg)](https://docs.rs/gfcgi) [![Cargo](https://img.shields.io/badge/crates.io-gfcg=0.4.3-brightgreen.svg)](https://crates.io/crates/gfcgi) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 #### Description
 *gfcgi* is a native Rust library for FastCGI.  
 This library supports multithreaded socket listeners and HTTP-instances multiplexed onto a single connection.
 
+### WARNING: This repository is abandoned
+
+There is no active support on it.
+Feel free to ask if you want to help to keep this project up to date.
+
 #### About FastCGI
 FastCGI is a great solution to handling HTTP-requests without overhead. Completely supporting HTTP or HTTPS by any of the leading popular web-servers (Apache HTTPd, nginx, etc). 
+
 
 [Specification](doc/fcgi-spec.md) 
 

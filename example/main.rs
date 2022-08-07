@@ -1,5 +1,6 @@
 extern crate gfcgi;
 
+use std::error::Error;
 use std::io::{Read, Write};
 use std::thread;
 
@@ -49,7 +50,6 @@ fn main()
 
     if cfg!(feature = "spawn") {
         // spawn worker
-        client.run(Router::new())
-            .join()
+        client.run(Router::new());
     }
 }
